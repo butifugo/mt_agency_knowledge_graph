@@ -50,6 +50,7 @@ class ChatResponse(BaseModel):
     answer: str
     citations: List[Citation]
     sources: List[Citation]
+    followups: List[str] = []
     agency: Optional[str] = None
     strategy: str
     provider: str = ""

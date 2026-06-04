@@ -9,7 +9,7 @@ from typing import Tuple
 
 import httpx
 
-MAX_TOKENS = 1024
+MAX_TOKENS = 1536  # headroom so the trailing <<FOLLOWUPS>> block isn't truncated
 _PLACEHOLDER = "your-"  # unedited value in .env.example
 
 
