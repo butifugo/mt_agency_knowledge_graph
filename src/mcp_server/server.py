@@ -100,4 +100,21 @@ def get_document_context(node_id: str, context_hops: int = 1) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Montana Agency Knowledge MCP server")
+    parser.add_argument(
+        "--http",
+        action="store_true",
+        help="run as a standing streamable-HTTP service (deployable) instead of stdio",
+    )
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8003)
+    args = parser.parse_args()
+
+    if args.http:
+        # Networked service — clients (the demo bridge, Claude Desktop remote, etc.)
+        # connect at http://<host>:<port>/mcp
+        mcp.run(transport="http", host=args.host, port=args.port)
+    else:
+        mcp.run()  # stdio (default) — for local AI clients

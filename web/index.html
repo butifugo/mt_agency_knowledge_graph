@@ -43,6 +43,28 @@
     .embed-copy:focus-visible { outline:3px solid var(--mt-blue); outline-offset:2px; }
     .embed-copy.copied { background:#1f8a4c; color:#fff; }
     .embed-note { font-size:13px; color:#555; margin:6px 0 0; }
+    .tabs { display:flex; gap:6px; border-bottom:2px solid #e2e5ea; margin:18px 0 4px; }
+    .tab { background:none; border:none; padding:10px 16px; font-size:15px; cursor:pointer; color:#555; border-bottom:3px solid transparent; margin-bottom:-2px; }
+    .tab:hover { color:var(--mt-blue); }
+    .tab.active { color:var(--mt-blue); font-weight:600; border-bottom-color:var(--mt-blue); }
+    .tab:focus-visible { outline:2px solid var(--mt-blue); outline-offset:2px; }
+    #graph-holder { position:relative; width:100%; height:560px; border:1px solid #e2e5ea; border-radius:10px; background:#fbfcfe; overflow:hidden; }
+    #graph-svg { width:100%; height:100%; display:block; cursor:grab; }
+    .legend { display:flex; flex-wrap:wrap; gap:10px; margin:8px 0 12px; font-size:12px; }
+    .legend .item { display:flex; align-items:center; gap:5px; }
+    .legend .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }
+    .gnode { cursor:pointer; stroke:#fff; stroke-width:1px; }
+    .glink { stroke:#c8d2e0; stroke-opacity:.5; }
+    .glabel { font-size:9px; fill:#333; pointer-events:none; paint-order:stroke; stroke:#fff; stroke-width:2px; }
+    .gtip { position:absolute; pointer-events:none; background:#0f2238; color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; max-width:260px; opacity:0; transition:opacity .1s; }
+    #mcp-tools { font-size:14px; }
+    #mcp-tools code { background:#e7edf6; padding:1px 5px; border-radius:4px; }
+    .mcp-call { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
+    .mcp-call select, .mcp-call input { border:1px solid #c7ccd4; border-radius:8px; padding:8px 10px; font-size:14px; }
+    .mcp-call input { flex:1; min-width:220px; }
+    .mcp-call button { background:var(--mt-blue); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:14px; cursor:pointer; }
+    #mcp-results ol { padding-left:20px; font-size:14px; } #mcp-results li { margin:3px 0; }
+    .mcp-pre { background:#0f2238; color:#e6edf5; border-radius:8px; padding:12px 14px; overflow:auto; max-height:320px; font-size:12px; white-space:pre-wrap; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
   </style>
 </head>
 <body>
@@ -58,6 +80,13 @@
     <h2>Welcome to Montana.gov</h2>
     <p class="lede">Find programs, services, and information across Montana state agencies.</p>
 
+    <div class="tabs" role="tablist" aria-label="Demo views">
+      <button class="tab active" id="tabbtn-overview" role="tab" aria-selected="true" aria-controls="tab-overview">Overview</button>
+      <button class="tab" id="tabbtn-graph" role="tab" aria-selected="false" aria-controls="tab-graph">Knowledge graph</button>
+      <button class="tab" id="tabbtn-mcp" role="tab" aria-selected="false" aria-controls="tab-mcp">MCP server</button>
+    </div>
+
+    <section id="tab-overview" class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-overview">
     <p class="hint">
       👉 This is a <strong>sample page</strong> for the answer widget. Click the chat button in the
       bottom-right corner and ask something like <em>“How do I get a pesticide license?”</em> or
@@ -102,6 +131,39 @@
       <h2>Human Resources — content detail</h2>
       <div id="focus-body"></div>
     </div>
+    </section>
+
+    <section id="tab-graph" class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-graph" hidden>
+      <div class="card">
+        <h2>Knowledge graph</h2>
+        <p class="muted" id="graph-status">Loading a sampled view of the knowledge graph…</p>
+        <div id="graph-legend" class="legend"></div>
+        <div id="graph-holder"><svg id="graph-svg"></svg></div>
+        <p class="muted" id="graph-note"></p>
+      </div>
+    </section>
+
+    <section id="tab-mcp" class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-mcp" hidden>
+      <div class="card">
+        <h2>MCP server (live)</h2>
+        <p class="muted" id="mcp-status">Connecting to the MCP server…</p>
+        <p>The Model Context Protocol server exposes the agency knowledge as tools an AI client
+          (e.g. Claude Desktop) can call. Tools advertised by the server:</p>
+        <ul id="mcp-tools"></ul>
+        <p>Try one live — this calls the real MCP tool and shows its raw response:</p>
+        <div class="mcp-call">
+          <select id="mcp-tool" aria-label="MCP tool">
+            <option value="search_agency_knowledge">search_agency_knowledge</option>
+            <option value="search_by_agency">search_by_agency</option>
+          </select>
+          <input id="mcp-q" type="text" placeholder="e.g. pesticide license  (for search_by_agency, an agency like human-resources)" aria-label="Query" />
+          <button id="mcp-run" type="button">Call tool</button>
+        </div>
+        <div id="mcp-results"></div>
+        <p class="muted" style="margin-top:10px">Raw MCP tool response:</p>
+        <pre id="mcp-out" class="mcp-pre">Run a tool above to see the live MCP result.</pre>
+      </div>
+    </section>
   </main>
 
   <footer>Sample demo page · not an official Montana state website.</footer>
@@ -192,6 +254,138 @@
         fallback();
       }
     });
+  })();
+  </script>
+
+  <!-- Tabs + D3 knowledge-graph visualization (renders web/graph.json from build_graph_viz.py). -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script>
+  (function () {
+    var MCP_API = 'http://localhost:8002';
+    var TABS = ['overview', 'graph', 'mcp'];
+    var inited = {};
+    function el(id) { return document.getElementById(id); }
+    function mcpEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+    function show(name) {
+      TABS.forEach(function (t) {
+        var on = t === name, pan = el('tab-' + t), btn = el('tabbtn-' + t);
+        if (pan) pan.hidden = !on;
+        if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-selected', String(on)); }
+      });
+      if (!inited[name]) {
+        inited[name] = true;
+        if (name === 'graph') renderGraph();
+        if (name === 'mcp') initMcp();
+      }
+    }
+    TABS.forEach(function (t) { var b = el('tabbtn-' + t); if (b) b.addEventListener('click', function () { show(t); }); });
+
+    function initMcp() {
+      var status = el('mcp-status');
+      fetch(MCP_API + '/mcp/tools', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (d) {
+          status.innerHTML = 'Connected to MCP server <strong>' + mcpEsc(d.server) + '</strong> via the demo bridge.';
+          el('mcp-tools').innerHTML = d.tools.map(function (t) {
+            return '<li><code>' + mcpEsc(t.name) + '</code> — ' + mcpEsc(t.description.split('\n')[0]) + '</li>';
+          }).join('');
+        })
+        .catch(function () {
+          status.innerHTML = 'Could not reach the MCP demo bridge at ' + mcpEsc(MCP_API) +
+            '. Start it with <code>.venv/bin/uvicorn src.mcp_demo.app:app --port 8002</code>.';
+        });
+      el('mcp-run').addEventListener('click', callMcp);
+      el('mcp-q').addEventListener('keydown', function (e) { if (e.key === 'Enter') callMcp(); });
+    }
+
+    function callMcp() {
+      var q = el('mcp-q').value.trim(); if (!q) return;
+      var tool = el('mcp-tool').value;
+      var out = el('mcp-out'); out.textContent = 'Calling MCP tool…';
+      el('mcp-results').innerHTML = '';
+      var args = tool === 'search_by_agency' ? { agency: q, top_k: 5 } : { query: q, top_k: 5 };
+      fetch(MCP_API + '/mcp/call', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool: tool, arguments: args })
+      })
+        .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, b: b }; }); })
+        .then(function (x) {
+          if (!x.ok) { out.textContent = 'Error: ' + (x.b.detail || 'call failed'); return; }
+          var res = x.b.result || {};
+          var rows = (res.results || []).map(function (d) {
+            var url = d.source_url || d.url || '';
+            return '<li>' + mcpEsc(d.title || d.node_id || '(untitled)') +
+              ' <span class="muted">[' + mcpEsc(d.agency || '') + ']</span>' +
+              (url ? ' — <a href="' + mcpEsc(url) + '" target="_blank" rel="noopener">source</a>' : '') + '</li>';
+          }).join('');
+          el('mcp-results').innerHTML = rows ? '<ol>' + rows + '</ol>' : '<p class="muted">No results.</p>';
+          out.textContent = JSON.stringify({ request: x.b.request, result: res }, null, 2);
+        })
+        .catch(function () { out.textContent = 'Could not reach the MCP demo bridge at ' + MCP_API + '.'; });
+    }
+
+    function renderGraph() {
+      var status = document.getElementById('graph-status');
+      if (typeof d3 === 'undefined') { status.textContent = 'Could not load D3 (no internet connection?).'; return; }
+      fetch('graph.json', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(draw)
+        .catch(function () { status.textContent = 'graph.json not found — run scripts/build_graph_viz.py.'; });
+    }
+
+    function draw(g) {
+      var holder = document.getElementById('graph-holder');
+      var W = holder.clientWidth, H = holder.clientHeight;
+      var agencies = g.agencies || [];
+      var color = d3.scaleOrdinal(d3.schemeTableau10.concat(d3.schemeSet3)).domain(agencies);
+
+      document.getElementById('graph-legend').innerHTML = agencies.map(function (a) {
+        return '<span class="item"><span class="dot" style="background:' + color(a) + '"></span>' + a + '</span>';
+      }).join('');
+      document.getElementById('graph-status').textContent =
+        'Agency hubs (large) and their top documents (small), colored by agency. Drag nodes, scroll to zoom, click a document to open its source.';
+      document.getElementById('graph-note').textContent =
+        'Showing ' + g.nodes.length + ' of ' + (g.total_nodes || 0).toLocaleString() + ' nodes (sampled for display).';
+
+      var svg = d3.select('#graph-svg');
+      svg.selectAll('*').remove();
+      var root = svg.append('g');
+      svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', function (e) { root.attr('transform', e.transform); }));
+      var tip = d3.select(holder).append('div').attr('class', 'gtip');
+
+      var link = root.append('g').selectAll('line').data(g.links).enter().append('line').attr('class', 'glink');
+      var node = root.append('g').selectAll('circle').data(g.nodes).enter().append('circle')
+        .attr('class', 'gnode')
+        .attr('r', function (d) { return d.kind === 'agency' ? 12 : 4; })
+        .attr('fill', function (d) { return color(d.agency); })
+        .attr('stroke-width', function (d) { return d.kind === 'agency' ? 2 : 1; })
+        .on('mouseover', function (e, d) { tip.style('opacity', 1).text(d.label + (d.kind === 'doc' ? ' — ' + d.agency : '')); })
+        .on('mousemove', function (e, d) { tip.style('left', (e.offsetX + 12) + 'px').style('top', (e.offsetY + 8) + 'px'); })
+        .on('mouseout', function () { tip.style('opacity', 0); })
+        .on('click', function (e, d) { if (d.url) window.open(d.url, '_blank', 'noopener'); })
+        .call(d3.drag()
+          .on('start', function (e, d) { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on('drag', function (e, d) { d.fx = e.x; d.fy = e.y; })
+          .on('end', function (e, d) { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+      var labels = root.append('g').selectAll('text')
+        .data(g.nodes.filter(function (d) { return d.kind === 'agency'; }))
+        .enter().append('text').attr('class', 'glabel').text(function (d) { return d.label; }).attr('dx', 14).attr('dy', 4);
+
+      var sim = d3.forceSimulation(g.nodes)
+        .force('link', d3.forceLink(g.links).id(function (d) { return d.id; })
+          .distance(function (l) { return l.type === 'belongs_to_agency' ? 38 : 70; }).strength(0.3))
+        .force('charge', d3.forceManyBody().strength(-55))
+        .force('center', d3.forceCenter(W / 2, H / 2))
+        .force('collide', d3.forceCollide(function (d) { return d.kind === 'agency' ? 16 : 6; }))
+        .on('tick', function () {
+          link.attr('x1', function (d) { return d.source.x; }).attr('y1', function (d) { return d.source.y; })
+              .attr('x2', function (d) { return d.target.x; }).attr('y2', function (d) { return d.target.y; });
+          node.attr('cx', function (d) { return d.x; }).attr('cy', function (d) { return d.y; });
+          labels.attr('x', function (d) { return d.x; }).attr('y', function (d) { return d.y; });
+        });
+    }
   })();
   </script>
 
