@@ -3,9 +3,13 @@
 Montana State Government **Knowledge Network**. Crawls 37+ state-agency websites (HTML, PDF,
 DOCX), builds per-agency **knowledge graphs** with semantic relationships, derives **navigation
 graphs**, and renders interactive D3 visualizations and a unified dashboard. The graph engine
-in `src/network/` also exposes a **graph-enhanced RAG retriever** — the core we are evolving
-into an **MCP server** so AI agents can query agency knowledge directly, embeddable on every
-agency website.
+in `src/network/` exposes a **graph-enhanced RAG retriever**, surfaced two ways over a single
+shared retrieval core (`src/chat_api/retrieval.get_retriever`):
+
+- **MCP server** (`src/mcp_server/`) — Python / FastMCP over **stdio**, so AI clients (Claude
+  Desktop, etc.) can query agency knowledge directly. Not a network service; launched per-client.
+- **Chat API** (`src/chat_api/`) — a FastAPI service (`/chat`, `/health`) that does retrieval +
+  LLM synthesis, fronted by an embeddable browser widget in `web/` (`widget.js`).
 
 ## Pipeline mental model
 
@@ -31,7 +35,8 @@ the RAG retriever all read from it — they never recompute relationships indepe
 
 ## The graph engine (`src/network/`) — the mission-critical core
 
-This is where the MCP evolution lives. Treat it as the durable API; the phase CLIs are drivers around it.
+This is where retrieval lives. Treat it as the durable API; the phase CLIs, the MCP server, and
+the chat API are all drivers around it.
 
 | File | Role |
 |------|------|
@@ -45,8 +50,19 @@ This is where the MCP evolution lives. Treat it as the durable API; the phase CL
 | `3_build_network.py` | Build orchestrator (argparse; `--quick` skips expensive steps) |
 
 The retrieval contract is `RAGResult` (`query`, `results[]`, `total_found`, `search_strategy`,
-`execution_time_ms`, `expanded_nodes`). When the MCP server is built, its tools **wrap these
-methods and return this shape** — never reimplement retrieval.
+`execution_time_ms`, `expanded_nodes`). The MCP tools and the chat API both **wrap these methods**
+via the shared `get_retriever()` singleton — never reimplement retrieval.
+
+### Server surfaces over the retriever
+
+| File | Role |
+|------|------|
+| `src/chat_api/retrieval.py` | `get_retriever()` — process-wide singleton loading `montana_knowledge.pkl`. **Both surfaces import this.** |
+| `src/mcp_server/server.py` | FastMCP (stdio) tools: `search_agency_knowledge`, `search_by_agency`, `get_document_context`. Run: `.venv/bin/python -m src.mcp_server.server` |
+| `src/chat_api/app.py` | FastAPI: `POST /chat`, `GET /health`. Permissive CORS for the local demo. |
+| `src/chat_api/answer.py` | Retrieve → synthesize a grounded, cited answer |
+| `src/chat_api/providers.py` | Pluggable LLM providers; select via `CHAT_PROVIDER` env (`perplexity` default, `anthropic`). LLM synthesis is the ONLY place that calls an LLM. |
+| `web/widget.js` + `web/index.html` | Embeddable browser widget; POSTs to the chat API (`data-api` attr, default `http://localhost:8001`). |
 
 ## Canonical layout
 
@@ -61,6 +77,9 @@ src/phase4_viz_knowledge/    cli.py, knowledge_viz.py
 src/phase5_viz_navigation/   cli.py, html_navigation_viz.py, navigation_viz.py
 src/phase6_viz_interactive/  cli.py, dashboard_viz.py, integrated_cli.py
 src/network/                 the graph engine (table above)
+src/mcp_server/              FastMCP (stdio) server — server.py
+src/chat_api/                FastAPI /chat + /health — app.py, answer.py, providers.py, retrieval.py, config.py
+web/                         embeddable browser widget — index.html, widget.js, coverage.json
 src/extract/, src/viz/       LEGACY (crawler_1.py, 2_refresh.py, 4_agency_network_viz.py) — prefer phase modules
 scripts/run_all.py           master orchestrator (--agencies / --all-agencies / --phases / --skip-crawl / --quick)
 scripts/generate_agency_index.py
@@ -89,6 +108,13 @@ python scripts/run_all.py --all-agencies --skip-crawl
 
 # Serve dashboard
 python serve_dashboard.py   # → http://localhost:8000/interactive-dashboard.html
+
+# MCP server (stdio — for AI clients like Claude Desktop)
+.venv/bin/python -m src.mcp_server.server
+
+# Chat API (FastAPI on 8001) + widget demo (static on 8000)
+uvicorn src.chat_api.app:app --host 127.0.0.1 --port 8001 --reload
+python -m http.server 8000 --bind 127.0.0.1 --directory web   # → http://localhost:8000/
 ```
 
 ## Rules to honor
@@ -105,10 +131,13 @@ python serve_dashboard.py   # → http://localhost:8000/interactive-dashboard.ht
 - **Crawling is outward-facing.** Honor `config.yaml` `crawling.rate_limit_delay` and the user
   agent; prefer `--dry-run` / `--update-only` before a full re-crawl. Don't crawl non-`.mt.gov`
   hosts.
-- **MCP framing:** the server (planned, not yet built) is **Python / FastMCP**, wrapping
-  `GraphRAGRetriever`. Keep new retrieval logic in `src/network/` so it's reusable from both the
-  CLIs and the future server. See the `mcp-server` skill.
-- This project is **not yet a git repo**; there's no remote. Don't assume `git`/`origin`.
+- **Two surfaces, one core.** The MCP server (`src/mcp_server/`, FastMCP/stdio) and the chat API
+  (`src/chat_api/`, FastAPI on 8001) both go through `get_retriever()` over `src/network/`. Keep new
+  retrieval logic in `src/network/` so both stay thin wrappers — never reimplement retrieval in a
+  surface. The browser widget hits the **chat API**, not the MCP server. See the `mcp-server` skill.
+- **LLM calls live in one place.** Only `src/chat_api/providers.py` (synthesis) talks to an LLM;
+  retrieval, the graph, and the MCP tools never do. Swap providers via `CHAT_PROVIDER` env, not code.
+- This project **is** a git repo (branch `main`); there's no remote configured. Don't assume `origin`.
 
 ## Working with the agent team
 

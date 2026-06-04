@@ -1,0 +1,1 @@
+- [Retrieval grounding floor (deferred)](retrieval-grounding-floor-followup.md) — chat hallucinates on out-of-corpus questions; durable fix is a relevance floor / embeddings in src/network/

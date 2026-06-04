@@ -18,6 +18,38 @@ from src.network.schema import (
 )
 
 
+# hr.mt.gov serves a shared Department of Administration document repository under
+# /_docs/<division>/ that covers many DOA divisions, not just HR. Crawling by host
+# therefore mis-labels ~700 procurement/banking/IT/risk docs as "human-resources".
+# Re-attribute by the division token in the source URL so agency-scoped retrieval and
+# citations are correct. Genuine HR / employee-benefits content stays under human-resources.
+_DOA_REPO_HOST = "hr.mt.gov"
+_HR_DIVISIONS = {"shrd", "hcbd", "newdocs"}  # stay human-resources; all other tokens -> administration
+_DOA_REPO_RE = re.compile(r"/_docs/([^/]+)/", re.IGNORECASE)
+
+
+def resolve_agency(source_url: Optional[str], default_agency: str) -> str:
+    """Map a crawled doc to its true agency.
+
+    The crawl folder names the host's agency, but hr.mt.gov mixes a DOA-wide
+    /_docs/<division>/ repository in with real HR content. For docs from that
+    repository, the division token is the authoritative agency signal.
+    """
+    if not source_url:
+        return default_agency
+    try:
+        parsed = urlparse(source_url)
+    except ValueError:
+        return default_agency
+    if parsed.netloc.lower() != _DOA_REPO_HOST:
+        return default_agency
+    match = _DOA_REPO_RE.search(parsed.path)
+    if not match:
+        return default_agency  # top-level HR pages (/Policies/, /HR-Portal/, ...) stay HR
+    division = match.group(1).lower()
+    return default_agency if division in _HR_DIVISIONS else "administration"
+
+
 class GraphBuilder:
     """Builds knowledge graph from markdown documents"""
     
@@ -192,18 +224,30 @@ class GraphBuilder:
         
         md_files = list(self.knowledge_dir.rglob('*.md'))
         total_files = len(md_files)
-        
+
+        # Skip pathologically large "documents" — these are media (audio/video) the
+        # extractor dumped as huge markdown (500MB+). Real text pages are well under this.
+        MAX_DOC_BYTES = 10_000_000
+        skipped_large = 0
+
         for idx, md_file in enumerate(md_files, 1):
             if verbose and idx % 500 == 0:
                 print(f"  Processing file {idx}/{total_files}...")
-            
+
+            if md_file.stat().st_size > MAX_DOC_BYTES:
+                skipped_large += 1
+                if verbose:
+                    print(f"  ⏭  skipping oversized file ({md_file.stat().st_size // 1_000_000}MB): {md_file.name}")
+                continue
+
             try:
-                # Get agency from folder structure
-                agency = md_file.parent.name
-                
                 # Extract metadata and content
                 metadata = self.extract_metadata(md_file)
                 content = self.extract_content(md_file)
+
+                # Agency defaults to the crawl folder, but re-attribute docs from the
+                # shared DOA /_docs/<division>/ repository to their true agency.
+                agency = resolve_agency(metadata.get('source'), md_file.parent.name)
                 
                 # Create node ID (relative path without extension)
                 node_id = str(md_file.relative_to(self.knowledge_dir).with_suffix(''))

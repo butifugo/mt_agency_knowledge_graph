@@ -1,0 +1,95 @@
+{
+  "generated": "2026-06-04T12:46:05",
+  "total_docs": 11856,
+  "agency_count": 10,
+  "agencies": [
+    {
+      "folder": "commerce",
+      "name": "Commerce",
+      "url": "https://commerce.mt.gov/",
+      "doc_count": 2839
+    },
+    {
+      "folder": "agriculture",
+      "name": "Agriculture",
+      "url": "https://agr.mt.gov/",
+      "doc_count": 2688
+    },
+    {
+      "folder": "human-resources",
+      "name": "Human Resources",
+      "url": "https://hr.mt.gov/",
+      "doc_count": 1891
+    },
+    {
+      "folder": "labor-industry",
+      "name": "Labor & Industry",
+      "url": "https://dli.mt.gov/",
+      "doc_count": 1460
+    },
+    {
+      "folder": "environmental-quality",
+      "name": "Environmental Quality",
+      "url": "https://deq.mt.gov/",
+      "doc_count": 1125
+    },
+    {
+      "folder": "corrections",
+      "name": "Corrections",
+      "url": "https://cor.mt.gov/",
+      "doc_count": 794
+    },
+    {
+      "folder": "auditor",
+      "name": "Auditor",
+      "url": "https://csimt.gov/",
+      "doc_count": 708
+    },
+    {
+      "folder": "arts-council",
+      "name": "Arts Council",
+      "url": "https://art.mt.gov/",
+      "doc_count": 229
+    },
+    {
+      "folder": "administration",
+      "name": "Administration",
+      "url": "https://doa.mt.gov/",
+      "doc_count": 102
+    },
+    {
+      "folder": "montanaworks",
+      "name": "MontanaWorks",
+      "url": "https://montanaworks.gov",
+      "doc_count": 20
+    }
+  ],
+  "focus": {
+    "folder": "human-resources",
+    "name": "Human Resources",
+    "url": "https://hr.mt.gov/",
+    "doc_count": 1891,
+    "types": {
+      "HTML": 181,
+      "PDF": 1603,
+      "DOCX": 107
+    },
+    "sample_titles": [
+      "Mortgage Lender License Guide - Banking | Montana Department of Administration",
+      "BUDGETARY ACCOUNTING AND REPORTING SYSTEM (BARS)",
+      "IT Board Meeting Materials | Montana Department of Administration",
+      "MFPE Master Agreement 2025-2027",
+      "Recent Notices of Intent to Award (NOIA) | Montana Department of Administration",
+      "Agency Consultant Appointment Request",
+      "Draft Voluntary ADD Certificate",
+      "Form 120 Agreement for Securities in Lieu of Retainage",
+      "Montana ACFR - 2023",
+      "Insurance - Risk Management and Tort Defense | Montana Department of Administration",
+      "Electing COBRA - Health Care & Benefits Division | Montana Department of Administration",
+      "072 MOU for Grants at MSDB",
+      "2023-42-03 Bid Tab.pdf",
+      "SECGC Advisory Council Minutes & Audits | Montana Department of Administration",
+      "009 Firefighters IAFF MIL CBA"
+    ]
+  }
+}

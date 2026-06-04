@@ -25,7 +25,7 @@ class SemanticEnhancer:
         self.knowledge_dir = Path(knowledge_dir)
         self.embeddings_cache: Dict[str, np.ndarray] = {}
         
-    def chunk_content(self, content: str, node_id: str, chunk_size: int = 512) -> List[ContentChunk]:
+    def chunk_content(self, content: str, node_id: str, chunk_size: int = 512, max_chunks: int = None) -> List[ContentChunk]:
         """
         Split document content into semantic chunks for RAG
         Uses paragraph-aware chunking with overlap
@@ -67,6 +67,9 @@ class SemanticEnhancer:
                 
                 chunk_index += 1
                 current_position += len(current_chunk)
+
+                if max_chunks and len(chunks) >= max_chunks:
+                    return chunks
                 
                 # Start new chunk with overlap (last sentence of previous chunk)
                 sentences = current_chunk.split('. ')
@@ -160,7 +163,7 @@ class SemanticEnhancer:
         except Exception as e:
             return None
     
-    def create_chunks(self, verbose: bool = True) -> int:
+    def create_chunks(self, verbose: bool = True, max_chunks_per_doc: int = None) -> int:
         """Create content chunks for all documents"""
         if verbose:
             print("Phase 2a: Creating content chunks for RAG...")
@@ -175,7 +178,8 @@ class SemanticEnhancer:
                 # Read document content
                 md_file = self.knowledge_dir / (node_id + '.md')
                 with open(md_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                    # cap the read when bounding chunks so giant PDFs aren't loaded whole
+                    content = f.read(max_chunks_per_doc * 512 * 8 + 4096) if max_chunks_per_doc else f.read()
                 
                 # Remove frontmatter
                 if content.startswith('---'):
@@ -184,7 +188,7 @@ class SemanticEnhancer:
                         content = parts[2]
                 
                 # Create chunks
-                chunks = self.chunk_content(content, node_id, chunk_size=512)
+                chunks = self.chunk_content(content, node_id, chunk_size=512, max_chunks=max_chunks_per_doc)
                 
                 # Add chunks to graph
                 for chunk in chunks:
