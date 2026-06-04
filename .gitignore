@@ -1,0 +1,40 @@
+# Ignore crawled knowledge files
+knowledge/
+
+# Generated HTML visualizations
+html/
+
+# Generated graph data & large exports (regenerate via the pipeline)
+data/graphs/
+src/network/exports/
+*.pkl
+*.graphml
+.cache/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+.venv-mcp
+
+# Secrets — never commit real keys
+.env
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

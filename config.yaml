@@ -1,0 +1,72 @@
+# Montana State Government Knowledge Network Configuration
+
+# Data paths
+paths:
+  knowledge_dir: "knowledge"
+  graphs_dir: "data/graphs"
+  html_dir: "html"
+  agencies_file: "agencies.md"
+
+# Phase 1: Crawling
+crawling:
+  rate_limit_delay: 1.0  # seconds between requests
+  timeout: 30  # request timeout
+  max_retries: 3
+  allowed_extensions:
+    - .html
+    - .htm
+    - .pdf
+    - .docx
+  user_agent: "Mozilla/5.0 (Montana Knowledge Crawler)"
+
+# Phase 2: Knowledge Network
+knowledge:
+  semantic_similarity:
+    enabled: true
+    threshold: 0.3
+    method: "tfidf"  # or "embeddings"
+  topic_modeling:
+    enabled: true
+    num_topics: 20
+  rag:
+    chunk_size: 512
+    chunk_overlap: 50
+
+# Phase 3: Navigation Network
+navigation:
+  max_depth: 10
+  mime_types:
+    html:
+      - text/html
+    pdf:
+      - application/pdf
+    docx:
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+# Phase 4-6: Visualizations
+visualization:
+  knowledge_graph:
+    max_nodes: 1000
+    layout: "force-directed"
+  navigation_tree:
+    layout: "tree"  # or "radial"
+  interactive:
+    default_agencies:
+      - agriculture
+      - commerce
+      - human-resources
+    max_nodes: 500
+    enable_filters: true
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "pipeline.log"
+
+# Performance
+performance:
+  parallel_processing: true
+  max_workers: 4
+  cache_enabled: true
+  cache_dir: ".cache"

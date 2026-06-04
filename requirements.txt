@@ -1,0 +1,26 @@
+requests>=2.32.5
+beautifulsoup4>=4.14.3
+markdownify>=1.2.2
+urllib3>=2.5.0
+pypdf2>=3.0.1
+python-docx>=1.2.0
+networkx>=3.2.1
+matplotlib>=3.9.4
+colorama>=0.4.6
+numpy>=1.24.0
+scipy>=1.10.0
+python-pptx>=0.6.21
+pyyaml>=6.0.1
+
+# MVP — testing + config (Workstream 1+)
+pytest>=7.4
+python-dotenv>=1.0
+
+# MVP — chat API (Workstream 2)
+fastapi>=0.110
+uvicorn>=0.29
+anthropic>=0.40
+httpx>=0.27
+
+# MVP — MCP server (Workstream 5); requires Python >= 3.10
+fastmcp>=2.0

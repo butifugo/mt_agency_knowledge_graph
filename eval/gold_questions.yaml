@@ -1,0 +1,52 @@
+# Gold question set for answer-quality evaluation (owned by Círdan, the retrieval evaluator).
+#
+# Each entry is a real citizen question plus what a *correct* answer should be grounded in:
+#   q       — the question
+#   agency  — the agency folder it should resolve to
+#   host    — a source-URL host a relevant result should come from
+#   terms   — topic terms a relevant result should contain (matched in title/url/snippet)
+#
+# Keep this in-repo so the score is reproducible and can gate releases. Expand over time;
+# ~3 questions across 3 agencies is the MVP floor.
+questions:
+  # --- agriculture ---
+  - q: "How do I get a commercial pesticide applicator license?"
+    agency: agriculture
+    host: agr.mt.gov
+    terms: [pesticide, applicator, licens]
+  - q: "What pesticide training or recertification credits are required?"
+    agency: agriculture
+    host: agr.mt.gov
+    terms: [pesticide, training, recertification, credit]
+  - q: "How do I register a nursery or sell plants in Montana?"
+    agency: agriculture
+    host: agr.mt.gov
+    terms: [nursery, plant, registration, licens]
+
+  # --- human-resources ---
+  - q: "How do I file a discrimination complaint as a state employee?"
+    agency: human-resources
+    host: hr.mt.gov
+    terms: [discrimination, complaint]
+  - q: "What is Montana state government's policy on employee pay?"
+    agency: human-resources
+    host: hr.mt.gov
+    terms: [pay, compensation, salary, audit]
+  - q: "Where can I find state employee benefits information?"
+    agency: human-resources
+    host: hr.mt.gov
+    terms: [benefit, insurance, health]
+
+  # --- auditor (Commissioner of Securities & Insurance) ---
+  - q: "How do I file an insurance complaint in Montana?"
+    agency: auditor
+    host: csimt.gov
+    terms: [insurance, complaint, consumer]
+  - q: "How do I check whether an insurance agent or company is licensed?"
+    agency: auditor
+    host: csimt.gov
+    terms: [insurance, licens, agent, company]
+  - q: "What should I do about an insurance claim after a wildfire?"
+    agency: auditor
+    host: csimt.gov
+    terms: [wildfire, insurance, claim]
