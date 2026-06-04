@@ -137,12 +137,25 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
+  // The top of the most recent exchange — the user's question. We anchor the
+  // view here so a long answer can be read from its top rather than its end.
+  var threadTop = null;
+
+  // Scroll the log so el's top sits near the top of the visible panel.
+  // The browser clamps scrollTop, so a short answer simply scrolls as far up
+  // as it can; a long answer reaches the top.
+  function anchorTop(el) {
+    if (!el) return;
+    logEl.scrollTop += el.getBoundingClientRect().top - logEl.getBoundingClientRect().top - 8;
+  }
+
   function addUser(text) {
     var d = document.createElement("div");
     d.className = "mtchat-msg mtchat-user";
     d.textContent = text;
     logEl.appendChild(d);
-    logEl.scrollTop = logEl.scrollHeight;
+    threadTop = d;
+    anchorTop(d);
   }
 
   // Render an answer, turning [n] markers into links to source n, plus a source list.
@@ -175,7 +188,10 @@
     }
     d.innerHTML = block;
     logEl.appendChild(d);
-    logEl.scrollTop = logEl.scrollHeight;
+    // Anchor to the top of this exchange (the question) so the reader starts
+    // at the beginning of the answer. Falls back to this message — e.g. the
+    // opening greeting, which has no preceding question.
+    anchorTop(threadTop || d);
   }
 
   function addLoading() {
@@ -183,7 +199,6 @@
     d.className = "mtchat-msg mtchat-bot";
     d.innerHTML = '<span class="mtchat-dots" aria-label="Thinking"></span>';
     logEl.appendChild(d);
-    logEl.scrollTop = logEl.scrollHeight;
     return d;
   }
 
