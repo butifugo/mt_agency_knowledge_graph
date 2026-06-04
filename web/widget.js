@@ -112,6 +112,25 @@
   });
 
   // ---- rendering -----------------------------------------------------------
+  // Normalize an error body's `detail` to a short human string. FastAPI sends a
+  // plain string for HTTPException, but a list of {msg,...} objects for request
+  // validation (422) — concatenating that list naively renders "[object Object]".
+  function detailText(body) {
+    var d = body && body.detail;
+    if (!d) return "";
+    if (typeof d === "string") return d;
+    if (Array.isArray(d)) {
+      return d
+        .map(function (e) {
+          return e && typeof e === "object" ? e.msg || "" : String(e);
+        })
+        .filter(Boolean)
+        .join("; ");
+    }
+    if (typeof d === "object") return d.msg || "";
+    return String(d);
+  }
+
   function escapeHtml(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -195,8 +214,8 @@
         } else if (r.status === 503) {
           addBot("The answer service isn't set up yet (the site administrator needs to add an API key).", null);
         } else {
-          var detail = r.body && r.body.detail ? " (" + r.body.detail + ")" : "";
-          addBot("Sorry, I couldn't get an answer" + detail + ".", null);
+          var detail = detailText(r.body);
+          addBot("Sorry, I couldn't get an answer" + (detail ? " (" + detail + ")" : "") + ".", null);
         }
       })
       .catch(function () {

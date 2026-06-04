@@ -20,6 +20,29 @@
     .card { border:1px solid #e2e5ea; border-radius:10px; padding:16px 18px; margin:18px 0; background:#fafbfc; }
     footer { border-top:1px solid #e2e5ea; padding:20px 24px; color:#777; font-size:13px; text-align:center; }
     .hint { background:#fff7df; border:1px solid var(--mt-gold); border-radius:8px; padding:10px 14px; font-size:14px; }
+    .stat { display:flex; gap:28px; flex-wrap:wrap; margin:6px 0 14px; }
+    .stat .n { font-size:28px; font-weight:700; color:var(--mt-blue); line-height:1.1; }
+    .stat .l { font-size:11px; color:#666; text-transform:uppercase; letter-spacing:.05em; }
+    table.reach { width:100%; border-collapse:collapse; font-size:14px; }
+    table.reach th, table.reach td { text-align:left; padding:6px 8px; border-bottom:1px solid #eef0f3; }
+    table.reach td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+    .bar { height:8px; background:var(--mt-blue); border-radius:4px; min-width:2px; }
+    .chip { display:inline-block; background:#eef2f7; border:1px solid #dce3ec; border-radius:999px; padding:2px 10px; margin:2px; font-size:12px; }
+    ul.titles { columns:2; column-gap:24px; font-size:13px; color:#333; padding-left:18px; margin:6px 0 0; }
+    ul.titles li { margin:3px 0; break-inside:avoid; }
+    .muted { color:#888; font-size:12px; }
+    .embed { border:1px solid #cdd6e4; border-radius:10px; padding:18px 20px; margin:18px 0; background:#f4f8fd; }
+    .embed h2 { margin-top:0; }
+    .embed ol { margin:10px 0 0; padding-left:20px; font-size:14px; line-height:1.6; }
+    .embed code { background:#e7edf6; padding:1px 5px; border-radius:4px; font-size:13px; }
+    .embed-snippet { position:relative; margin:12px 0 6px; }
+    .embed-snippet pre { margin:0; background:#0f2238; color:#e6edf5; border-radius:8px; padding:14px 48px 14px 16px;
+      overflow-x:auto; font-size:13px; line-height:1.5; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .embed-copy { position:absolute; top:8px; right:8px; background:var(--mt-gold); color:#1a1a1a; border:none;
+      border-radius:6px; padding:6px 12px; font-size:13px; font-weight:600; cursor:pointer; }
+    .embed-copy:focus-visible { outline:3px solid var(--mt-blue); outline-offset:2px; }
+    .embed-copy.copied { background:#1f8a4c; color:#fff; }
+    .embed-note { font-size:13px; color:#555; margin:6px 0 0; }
   </style>
 </head>
 <body>
@@ -51,17 +74,126 @@
       </ul>
     </div>
 
-    <div class="card">
-      <h2>About this demo</h2>
-      <p>
-        The chatbot answers from real content crawled from Montana state-agency websites
-        (9 agencies, ~10,000 documents), retrieved from a knowledge graph and summarized with
-        citations back to the source pages.
+    <div class="embed">
+      <h2>Add this chat to your own site</h2>
+      <p>Copy the tag below and paste it just before the closing <code>&lt;/body&gt;</code>
+        tag of any agency page. No build step, no dependencies — the widget appears in the
+        bottom-right corner.</p>
+      <div class="embed-snippet">
+        <button type="button" class="embed-copy" id="embed-copy" aria-label="Copy embed code">Copy</button>
+        <pre><code id="embed-code">&lt;script src="https://YOUR-CHAT-API.mt.gov/widget.js"
+        data-api="https://YOUR-CHAT-API.mt.gov"&gt;&lt;/script&gt;</code></pre>
+        <!-- The clipboard copy is normalized in JS so paste output is clean regardless of source indent. -->
+      </div>
+      <p class="embed-note">
+        Replace <code>YOUR-CHAT-API.mt.gov</code> in <strong>both</strong> places with the
+        address of your hosted answer service. <code>data-api</code> is where the widget sends
+        questions; it must point at the live <code>/chat</code> API, not <code>localhost</code>.
+        Don't have a hosted API yet? Contact the Knowledge Network team to get one provisioned.
       </p>
+    </div>
+
+    <div class="card" id="reach">
+      <h2>Content reach</h2>
+      <p class="muted">Loading collected content…</p>
+    </div>
+
+    <div class="card" id="focus" hidden>
+      <h2>Human Resources — content detail</h2>
+      <div id="focus-body"></div>
     </div>
   </main>
 
   <footer>Sample demo page · not an official Montana state website.</footer>
+
+  <!-- Content-reach panel: renders web/coverage.json (built by scripts/build_coverage.py). -->
+  <script>
+  (function () {
+    function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+    fetch('coverage.json', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(render)
+      .catch(function () {
+        document.getElementById('reach').innerHTML =
+          '<h2>Content reach</h2><p class="muted">coverage.json not found — run <code>scripts/build_coverage.py</code>.</p>';
+      });
+
+    function render(d) {
+      var max = d.agencies.reduce(function (m, a) { return Math.max(m, a.doc_count); }, 1);
+      var rows = d.agencies.map(function (a) {
+        var pct = Math.round((a.doc_count / max) * 100);
+        var name = a.url
+          ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.name) + '</a>'
+          : esc(a.name);
+        return '<tr><td>' + name + '</td>' +
+               '<td style="width:45%"><div class="bar" style="width:' + pct + '%"></div></td>' +
+               '<td class="num">' + a.doc_count.toLocaleString() + '</td></tr>';
+      }).join('');
+      document.getElementById('reach').innerHTML =
+        '<h2>Content reach</h2>' +
+        '<div class="stat">' +
+          '<div><div class="n">' + d.total_docs.toLocaleString() + '</div><div class="l">documents collected</div></div>' +
+          '<div><div class="n">' + d.agency_count + '</div><div class="l">agencies</div></div>' +
+        '</div>' +
+        '<table class="reach"><thead><tr><th>Agency</th><th></th><th class="num">Docs</th></tr></thead><tbody>' +
+        rows + '</tbody></table>' +
+        '<p class="muted">Collected ' + esc(d.generated) + ' from public agency websites. ' +
+        'Reflects content gathered into the knowledge base.</p>';
+
+      if (d.focus) {
+        var f = d.focus, types = f.types || {};
+        var chips = Object.keys(types).map(function (k) {
+          return '<span class="chip">' + esc(k) + ': ' + types[k].toLocaleString() + '</span>';
+        }).join(' ');
+        var titles = (f.sample_titles || []).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
+        document.getElementById('focus-body').innerHTML =
+          '<div class="stat"><div><div class="n">' + f.doc_count.toLocaleString() +
+          '</div><div class="l">HR documents</div></div></div>' +
+          '<p>' + chips + '</p>' +
+          '<p class="muted">Sample of collected pages &amp; documents:</p>' +
+          '<ul class="titles">' + titles + '</ul>';
+        document.getElementById('focus').hidden = false;
+      }
+    }
+  })();
+  </script>
+
+  <!-- Copy-to-clipboard for the embed snippet. -->
+  <script>
+  (function () {
+    var btn = document.getElementById('embed-copy');
+    var code = document.getElementById('embed-code');
+    if (!btn || !code) return;
+    btn.addEventListener('click', function () {
+      // Normalize source-indentation so the pasted snippet is clean and left-aligned.
+      var text = code.textContent
+        .split('\n')
+        .map(function (line, i) { return i === 0 ? line : '        ' + line.trim(); })
+        .join('\n');
+      function done() {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      }
+      function fallback() {
+        // navigator.clipboard is unavailable outside secure contexts (e.g. http://, file://).
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) { btn.textContent = 'Copy failed'; }
+        document.body.removeChild(ta);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else {
+        fallback();
+      }
+    });
+  })();
+  </script>
 
   <!-- The answer widget: single drop-in tag. Point data-api at the chat service. -->
   <script src="widget.js" data-api="http://localhost:8001"></script>

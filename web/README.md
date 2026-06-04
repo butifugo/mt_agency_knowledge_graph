@@ -24,8 +24,15 @@ Without an API key the widget shows a friendly "service isn't set up yet" messag
 
 ## Embed elsewhere
 
+Paste this just before `</body>` on any agency page, replacing the placeholder host in
+**both** spots with your hosted answer service:
+
 ```html
-<script src="/path/to/widget.js" data-api="https://your-chat-api"></script>
+<script src="https://YOUR-CHAT-API.mt.gov/widget.js"
+        data-api="https://YOUR-CHAT-API.mt.gov"></script>
 ```
+
+`data-api` is where the widget POSTs questions; it must point at the live `/chat` API, not
+`localhost`. The demo page (`index.html`) shows this same snippet with a one-click Copy button.
 
 No build step, no dependencies. Single-turn for MVP (each question is independent).
