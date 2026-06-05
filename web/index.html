@@ -57,6 +57,16 @@
     .glink { stroke:#c8d2e0; stroke-opacity:.5; }
     .glabel { font-size:9px; fill:#333; pointer-events:none; paint-order:stroke; stroke:#fff; stroke-width:2px; }
     .gtip { position:absolute; pointer-events:none; background:#0f2238; color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; max-width:260px; opacity:0; transition:opacity .1s; }
+    .graph-controls { display:flex; align-items:center; gap:8px; margin:6px 0 10px; font-size:14px; flex-wrap:wrap; }
+    .graph-controls select { border:1px solid #c7ccd4; border-radius:8px; padding:6px 8px; font-size:14px; }
+    .graph-row { display:flex; gap:12px; align-items:stretch; }
+    .graph-row #graph-holder { flex:1; width:auto; }
+    .graph-detail { width:300px; flex:none; border:1px solid #e2e5ea; border-radius:10px; padding:12px 14px; background:#fff; overflow:auto; max-height:560px; font-size:13px; }
+    .graph-detail h3 { margin:0 0 6px; font-size:15px; color:var(--mt-blue); word-break:break-word; }
+    .graph-detail .rel { margin-top:10px; } .graph-detail .rel b { display:block; font-size:12px; color:#555; margin-bottom:3px; }
+    .graph-detail ul { margin:0; padding-left:16px; } .graph-detail li { margin:2px 0; word-break:break-word; }
+    .gnode.sel { stroke:#111; stroke-width:3px; }
+    @media (max-width:760px){ .graph-row{flex-direction:column;} .graph-detail{width:auto;max-height:280px;} }
     #mcp-tools { font-size:14px; }
     #mcp-tools code { background:#e7edf6; padding:1px 5px; border-radius:4px; }
     .mcp-call { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
@@ -137,8 +147,18 @@
       <div class="card">
         <h2>Knowledge graph</h2>
         <p class="muted" id="graph-status">Loading a sampled view of the knowledge graph…</p>
+        <div class="graph-controls">
+          <label for="graph-agency">Focus:</label>
+          <select id="graph-agency"><option value="__all">All agencies</option></select>
+          <span class="muted" id="graph-count"></span>
+        </div>
         <div id="graph-legend" class="legend"></div>
-        <div id="graph-holder"><svg id="graph-svg"></svg></div>
+        <div class="graph-row">
+          <div id="graph-holder"><svg id="graph-svg"></svg></div>
+          <aside id="graph-detail" class="graph-detail">
+            <p class="muted">Click a node to see its details, keywords, and connections.</p>
+          </aside>
+        </div>
         <p class="muted" id="graph-note"></p>
       </div>
     </section>
@@ -325,66 +345,138 @@
         .catch(function () { out.textContent = 'Could not reach the MCP demo bridge at ' + MCP_API + '.'; });
     }
 
+    var GRAPH = null, graphColor = null, graphSim = null;
+    var REL_LABELS = { hyperlink: 'Links to', topic_related: 'Shares topics', semantic_similar: 'Similar content', citation: 'Cites', parent_child: 'Parent / child', same_agency: 'Same agency' };
+
     function renderGraph() {
       var status = document.getElementById('graph-status');
       if (typeof d3 === 'undefined') { status.textContent = 'Could not load D3 (no internet connection?).'; return; }
       fetch('graph.json', { cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-        .then(draw)
+        .then(function (g) {
+          GRAPH = g;
+          g._byId = {}; g.nodes.forEach(function (n) { g._byId[n.id] = n; });
+          var ags = g.agencies || [];
+          graphColor = d3.scaleOrdinal(d3.schemeTableau10.concat(d3.schemeSet3)).domain(ags);
+          document.getElementById('graph-legend').innerHTML = ags.map(function (a) {
+            return '<span class="item"><span class="dot" style="background:' + graphColor(a) + '"></span>' + mcpEsc(a) + '</span>';
+          }).join('');
+          var sel = document.getElementById('graph-agency');
+          sel.innerHTML = '<option value="__all">All agencies</option>' +
+            ags.map(function (a) { return '<option value="' + mcpEsc(a) + '">' + mcpEsc(a) + '</option>'; }).join('');
+          sel.addEventListener('change', function () { drawAgency(sel.value); });
+          document.getElementById('graph-status').textContent =
+            'Pick an agency to focus the view, drag to explore, and click any node for its details.';
+          document.getElementById('graph-note').textContent =
+            'Sampled view: ' + g.nodes.length + ' of ' + (g.total_nodes || 0).toLocaleString() +
+            ' nodes. Connections shown are from this sample, not the full graph.';
+          drawAgency('__all');
+        })
         .catch(function () { status.textContent = 'graph.json not found — run scripts/build_graph_viz.py.'; });
     }
 
-    function draw(g) {
+    function drawAgency(agency) {
+      var nodes, links;
+      if (agency === '__all') {
+        nodes = GRAPH.nodes; links = GRAPH.links;
+      } else {
+        nodes = GRAPH.nodes.filter(function (n) { return n.agency === agency; });
+        var ids = {}; nodes.forEach(function (n) { ids[n.id] = true; });
+        links = GRAPH.links.filter(function (l) {
+          var s = typeof l.source === 'object' ? l.source.id : l.source;
+          var t = typeof l.target === 'object' ? l.target.id : l.target;
+          return ids[s] && ids[t];
+        });
+      }
+      document.getElementById('graph-count').textContent =
+        nodes.length + ' nodes · ' + links.length + ' connections shown';
+      clearDetail();
+      draw(nodes, links);
+    }
+
+    function draw(nodes, links) {
       var holder = document.getElementById('graph-holder');
       var W = holder.clientWidth, H = holder.clientHeight;
-      var agencies = g.agencies || [];
-      var color = d3.scaleOrdinal(d3.schemeTableau10.concat(d3.schemeSet3)).domain(agencies);
-
-      document.getElementById('graph-legend').innerHTML = agencies.map(function (a) {
-        return '<span class="item"><span class="dot" style="background:' + color(a) + '"></span>' + a + '</span>';
-      }).join('');
-      document.getElementById('graph-status').textContent =
-        'Agency hubs (large) and their top documents (small), colored by agency. Drag nodes, scroll to zoom, click a document to open its source.';
-      document.getElementById('graph-note').textContent =
-        'Showing ' + g.nodes.length + ' of ' + (g.total_nodes || 0).toLocaleString() + ' nodes (sampled for display).';
-
-      var svg = d3.select('#graph-svg');
-      svg.selectAll('*').remove();
+      if (graphSim) graphSim.stop();
+      var svg = d3.select('#graph-svg'); svg.selectAll('*').remove();
       var root = svg.append('g');
       svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', function (e) { root.attr('transform', e.transform); }));
-      var tip = d3.select(holder).append('div').attr('class', 'gtip');
+      var tip = d3.select(holder).select('.gtip');
+      if (tip.empty()) tip = d3.select(holder).append('div').attr('class', 'gtip');
 
-      var link = root.append('g').selectAll('line').data(g.links).enter().append('line').attr('class', 'glink');
-      var node = root.append('g').selectAll('circle').data(g.nodes).enter().append('circle')
+      var link = root.append('g').selectAll('line').data(links).enter().append('line').attr('class', 'glink');
+      var nodeSel = root.append('g').selectAll('circle').data(nodes).enter().append('circle')
         .attr('class', 'gnode')
-        .attr('r', function (d) { return d.kind === 'agency' ? 12 : 4; })
-        .attr('fill', function (d) { return color(d.agency); })
+        .attr('r', function (d) { return d.kind === 'agency' ? 12 : 5; })
+        .attr('fill', function (d) { return graphColor(d.agency); })
         .attr('stroke-width', function (d) { return d.kind === 'agency' ? 2 : 1; })
         .on('mouseover', function (e, d) { tip.style('opacity', 1).text(d.label + (d.kind === 'doc' ? ' — ' + d.agency : '')); })
         .on('mousemove', function (e, d) { tip.style('left', (e.offsetX + 12) + 'px').style('top', (e.offsetY + 8) + 'px'); })
         .on('mouseout', function () { tip.style('opacity', 0); })
-        .on('click', function (e, d) { if (d.url) window.open(d.url, '_blank', 'noopener'); })
+        .on('click', function (e, d) { e.stopPropagation(); showDetail(d, nodeSel); })
         .call(d3.drag()
-          .on('start', function (e, d) { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on('start', function (e, d) { if (!e.active) graphSim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
           .on('drag', function (e, d) { d.fx = e.x; d.fy = e.y; })
-          .on('end', function (e, d) { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+          .on('end', function (e, d) { if (!e.active) graphSim.alphaTarget(0); d.fx = null; d.fy = null; }));
 
       var labels = root.append('g').selectAll('text')
-        .data(g.nodes.filter(function (d) { return d.kind === 'agency'; }))
+        .data(nodes.filter(function (d) { return d.kind === 'agency'; }))
         .enter().append('text').attr('class', 'glabel').text(function (d) { return d.label; }).attr('dx', 14).attr('dy', 4);
 
-      var sim = d3.forceSimulation(g.nodes)
-        .force('link', d3.forceLink(g.links).id(function (d) { return d.id; })
-          .distance(function (l) { return l.type === 'belongs_to_agency' ? 38 : 70; }).strength(0.3))
-        .force('charge', d3.forceManyBody().strength(-55))
+      graphSim = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(function (d) { return d.id; })
+          .distance(function (l) { return l.type === 'belongs_to_agency' ? 38 : 70; }).strength(0.25))
+        .force('charge', d3.forceManyBody().strength(-60))
         .force('center', d3.forceCenter(W / 2, H / 2))
-        .force('collide', d3.forceCollide(function (d) { return d.kind === 'agency' ? 16 : 6; }))
+        .force('collide', d3.forceCollide(function (d) { return d.kind === 'agency' ? 16 : 7; }))
         .on('tick', function () {
           link.attr('x1', function (d) { return d.source.x; }).attr('y1', function (d) { return d.source.y; })
               .attr('x2', function (d) { return d.target.x; }).attr('y2', function (d) { return d.target.y; });
-          node.attr('cx', function (d) { return d.x; }).attr('cy', function (d) { return d.y; });
+          nodeSel.attr('cx', function (d) { return d.x; }).attr('cy', function (d) { return d.y; });
           labels.attr('x', function (d) { return d.x; }).attr('y', function (d) { return d.y; });
         });
+    }
+
+    function clearDetail() {
+      document.getElementById('graph-detail').innerHTML =
+        '<p class="muted">Click a node to see its details, keywords, and connections.</p>';
+    }
+
+    function showDetail(d, nodeSel) {
+      if (nodeSel) nodeSel.classed('sel', function (n) { return n.id === d.id; });
+      var el = document.getElementById('graph-detail');
+      if (d.kind === 'agency') {
+        el.innerHTML = '<h3>' + mcpEsc(d.label) + '</h3><p class="muted">Agency hub — ' +
+          (d.doc_count || 0) + ' sampled documents. Click a document node for details.</p>';
+        return;
+      }
+      // neighbors from the full sampled link set, grouped by relationship
+      var groups = {};
+      GRAPH.links.forEach(function (l) {
+        if (l.type === 'belongs_to_agency') return;
+        var s = typeof l.source === 'object' ? l.source.id : l.source;
+        var t = typeof l.target === 'object' ? l.target.id : l.target;
+        var other = s === d.id ? t : (t === d.id ? s : null);
+        if (other) (groups[l.type] = groups[l.type] || []).push(other);
+      });
+      var html = '<h3>' + mcpEsc(d.label) + '</h3>';
+      html += '<p class="muted">' + mcpEsc(d.agency) + ' · ' + mcpEsc((d.type || '').replace(/_/g, ' ')) + '</p>';
+      if (d.url) html += '<p><a href="' + mcpEsc(d.url) + '" target="_blank" rel="noopener">Open source page ↗</a></p>';
+      var tags = (d.topics || []).concat(d.keywords || []);
+      if (tags.length) html += '<p>' + tags.slice(0, 12).map(function (t) { return '<span class="chip">' + mcpEsc(t) + '</span>'; }).join(' ') + '</p>';
+      html += '<p class="muted">' + (d.in_degree || 0) + ' links in · ' + (d.out_degree || 0) + ' out (full graph)</p>';
+      var any = false;
+      Object.keys(groups).forEach(function (type) {
+        any = true;
+        var list = groups[type];
+        var items = list.slice(0, 8).map(function (id) {
+          return '<li>' + mcpEsc((GRAPH._byId[id] || {}).label || id) + '</li>';
+        }).join('');
+        var more = list.length > 8 ? '<li class="muted">+' + (list.length - 8) + ' more</li>' : '';
+        html += '<div class="rel"><b>' + (REL_LABELS[type] || type) + ' (' + list.length + ')</b><ul>' + items + more + '</ul></div>';
+      });
+      if (!any) html += '<p class="muted">No connections to other sampled nodes.</p>';
+      el.innerHTML = html;
     }
   })();
   </script>
