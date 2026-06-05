@@ -156,6 +156,11 @@
             <option value="topics">Shared topics</option>
             <option value="keywords">Shared keywords</option>
           </select>
+          <label for="graph-color">Color by:</label>
+          <select id="graph-color">
+            <option value="agency">Agency</option>
+            <option value="type">Type</option>
+          </select>
           <span class="muted" id="graph-count"></span>
         </div>
         <div id="graph-legend" class="legend"></div>
@@ -352,6 +357,7 @@
     }
 
     var GRAPH = null, graphColor = null, graphSim = null, graphLinks = [];
+    var typeColor = null, allTypes = [], colorMode = 'agency';
     var REL_LABELS = { hyperlink: 'Links to', topic_related: 'Shares topics', keyword: 'Shares keywords', semantic_similar: 'Similar content', citation: 'Cites', parent_child: 'Parent / child', same_agency: 'Same agency' };
 
     function renderGraph() {
@@ -365,15 +371,18 @@
           g._byId = {}; g.nodes.forEach(function (n) { g._byId[n.id] = n; });
           var ags = g.agencies || [];
           graphColor = d3.scaleOrdinal(d3.schemeTableau10.concat(d3.schemeSet3)).domain(ags);
-          document.getElementById('graph-legend').innerHTML = ags.map(function (a) {
-            return '<span class="item"><span class="dot" style="background:' + graphColor(a) + '"></span>' + mcpEsc(a) + '</span>';
-          }).join('');
+          allTypes = [];
+          g.nodes.forEach(function (n) { if (n.kind === 'doc' && n.type && allTypes.indexOf(n.type) < 0) allTypes.push(n.type); });
+          allTypes.sort();
+          typeColor = d3.scaleOrdinal(d3.schemeSet2.concat(d3.schemeSet3)).domain(allTypes);
+          updateLegend();
           var sel = document.getElementById('graph-agency');
           sel.innerHTML = '<option value="">— Select an agency —</option><option value="__all">All agencies</option>' +
             ags.map(function (a) { return '<option value="' + mcpEsc(a) + '">' + mcpEsc(a) + '</option>'; }).join('');
           sel.value = '';
           sel.addEventListener('change', renderSelection);
           document.getElementById('graph-connect').addEventListener('change', renderSelection);
+          document.getElementById('graph-color').addEventListener('change', setColorMode);
           document.getElementById('graph-status').textContent =
             'Pick an agency (and how to connect) to render the graph, then click any node for details.';
           document.getElementById('graph-note').textContent =
@@ -392,6 +401,31 @@
     }
 
     function lid(x) { return typeof x === 'object' ? x.id : x; }
+
+    function nodeFill(d) {
+      if (d.kind === 'agency') return graphColor(d.agency);
+      return colorMode === 'type' ? typeColor(d.type || 'other') : graphColor(d.agency);
+    }
+
+    function updateLegend() {
+      var el = document.getElementById('graph-legend');
+      if (colorMode === 'type') {
+        el.innerHTML = allTypes.map(function (t) {
+          return '<span class="item"><span class="dot" style="background:' + typeColor(t) + '"></span>' + mcpEsc(t.replace(/_/g, ' ')) + '</span>';
+        }).join('');
+      } else {
+        var ags = (GRAPH && GRAPH.agencies) || [];
+        el.innerHTML = ags.map(function (a) {
+          return '<span class="item"><span class="dot" style="background:' + graphColor(a) + '"></span>' + mcpEsc(a) + '</span>';
+        }).join('');
+      }
+    }
+
+    function setColorMode() {
+      colorMode = document.getElementById('graph-color').value;
+      updateLegend();
+      d3.select('#graph-svg').selectAll('circle.gnode').attr('fill', nodeFill);
+    }
 
     function renderSelection() {
       if (!GRAPH) return;
@@ -451,7 +485,7 @@
       var nodeSel = root.append('g').selectAll('circle').data(nodes).enter().append('circle')
         .attr('class', 'gnode')
         .attr('r', function (d) { return d.kind === 'agency' ? 12 : 5; })
-        .attr('fill', function (d) { return graphColor(d.agency); })
+        .attr('fill', nodeFill)
         .attr('stroke-width', function (d) { return d.kind === 'agency' ? 2 : 1; })
         .on('mouseover', function (e, d) { tip.style('opacity', 1).text(d.label + (d.kind === 'doc' ? ' — ' + d.agency : '')); })
         .on('mousemove', function (e, d) { tip.style('left', (e.offsetX + 12) + 'px').style('top', (e.offsetY + 8) + 'px'); })
