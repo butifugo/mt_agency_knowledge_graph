@@ -34,10 +34,10 @@ GET  /api/mcp/tools, POST /api/mcp/call   MCP browser-demo bridge (powers the MC
 3. **Set environment variables** (Railway dashboard → Variables, or `railway variables --set K=V`):
    - `CHAT_PROVIDER=perplexity`
    - `PERPLEXITY_API_KEY=…`  (your key; never commit it)
-   - `GRAPH_URL=…`  — a downloadable URL for `montana_knowledge.pkl` (the graph isn't in the repo).
-     Use a GitHub Release asset, Cloudflare R2, or S3.
-   - `GRAPH_URL_TOKEN=…`  — only if `GRAPH_URL` needs an `Authorization: Bearer` token
-     (e.g. a private GitHub release asset).
+   - `GRAPH_URL=https://github.com/butifugo/mt_agency_knowledge_graph/releases/download/graph-v1/montana_knowledge.pkl`
+     — the built graph (~108 MB), published as a public release asset (repo is public, so **no token needed**).
+   - `GRAPH_URL_TOKEN` — not needed while the release asset is public; set it only if you later make
+     the repo private (then use the asset's API URL + a GitHub token with `contents:read`).
    - `PORT` is provided by Railway automatically.
 4. **Pick ≥ 1 GB RAM** for the service (graph + Python). Railway gives HTTPS automatically.
 
