@@ -261,7 +261,7 @@
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
   <script>
   (function () {
-    var MCP_API = 'http://localhost:8002';
+    var MCP_API = window.location.origin;  // same-origin: the unified app serves the bridge too
     var TABS = ['overview', 'graph', 'mcp'];
     var inited = {};
     function el(id) { return document.getElementById(id); }
@@ -283,7 +283,7 @@
 
     function initMcp() {
       var status = el('mcp-status');
-      fetch(MCP_API + '/mcp/tools', { cache: 'no-store' })
+      fetch(MCP_API + '/api/mcp/tools', { cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
         .then(function (d) {
           status.innerHTML = 'Connected to MCP server <strong>' + mcpEsc(d.server) + '</strong> via the demo bridge.';
@@ -305,7 +305,7 @@
       var out = el('mcp-out'); out.textContent = 'Calling MCP tool…';
       el('mcp-results').innerHTML = '';
       var args = tool === 'search_by_agency' ? { agency: q, top_k: 5 } : { query: q, top_k: 5 };
-      fetch(MCP_API + '/mcp/call', {
+      fetch(MCP_API + '/api/mcp/call', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tool: tool, arguments: args })
       })
@@ -389,7 +389,8 @@
   })();
   </script>
 
-  <!-- The answer widget: single drop-in tag. Point data-api at the chat service. -->
-  <script src="widget.js" data-api="http://localhost:8001"></script>
+  <!-- Same-origin in the unified app: the widget posts to /chat on this host. -->
+  <script>window.MT_CHAT_API = window.location.origin;</script>
+  <script src="widget.js"></script>
 </body>
 </html>

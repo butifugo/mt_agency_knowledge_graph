@@ -1,58 +1,69 @@
-# Deployment
+# Deployment — Railway (single service)
 
-## The architecture reality (read this first)
+The whole app runs as **one FastAPI service** (`src/web_app.py`) on **one origin** — no CORS,
+one deploy. Railway is the recommended host because it runs a **persistent process with RAM**
+(the ~103 MB knowledge graph stays in memory), which serverless platforms like Vercel can't do.
 
-This project has two parts with very different hosting needs:
+```
+GET  /            static front-end (web/: Overview / Knowledge graph / MCP server tabs)
+POST /chat        grounded, cited answer (Perplexity or Claude per CHAT_PROVIDER)
+GET  /health      health check
+GET  /api/mcp/tools, POST /api/mcp/call   MCP browser-demo bridge (powers the MCP tab)
+/mcp/             real MCP streamable-HTTP endpoint for AI clients (e.g. Claude Desktop)
+```
 
-- **Front-end (`web/`)** — static HTML/JS: the demo page, the chat widget, the D3
-  knowledge-graph view, and the small `coverage.json` / `graph.json` data files.
-  **This is Vercel-friendly.**
-- **Backend** — the FastAPI chat API (`src/chat_api`), the MCP service (`src/mcp_server`),
-  and the **knowledge graph** (`src/network/exports/montana_knowledge.pkl`, ~103 MB, loaded
-  into memory). This needs a **persistent server with RAM**. It is **NOT a fit for Vercel
-  serverless functions**: a 103 MB graph can't be reloaded per cold-start invocation, the
-  `.pkl` isn't in the repo (gitignored), and building it needs the multi-GB `knowledge/` crawl.
+## Run locally (identical to prod)
 
-So Vercel hosts the **front-end**; the **backend lives elsewhere**.
+```bash
+./scripts/run_stack.sh            # → http://localhost:8000/
+```
 
-| Piece | Recommended host |
-|------|------------------|
-| `web/` static front-end | **Vercel** |
-| chat API + MCP service + graph | **Render / Railway / Fly.io / a small VM** (a persistent process) |
+## Deploy on Railway
 
-## Front-end on Vercel
+1. **Install + log in** (login is interactive — a browser pairing flow):
+   ```bash
+   brew install railway        # or: npm i -g @railway/cli
+   railway login
+   ```
+2. **Create the project from this repo and deploy:**
+   ```bash
+   railway init -n mt-agency-knowledge
+   railway up
+   ```
+   (or, in the Railway dashboard: New Project → Deploy from GitHub repo → `butifugo/mt_agency_knowledge_graph`)
+3. **Set environment variables** (Railway dashboard → Variables, or `railway variables --set K=V`):
+   - `CHAT_PROVIDER=perplexity`
+   - `PERPLEXITY_API_KEY=…`  (your key; never commit it)
+   - `GRAPH_URL=…`  — a downloadable URL for `montana_knowledge.pkl` (the graph isn't in the repo).
+     Use a GitHub Release asset, Cloudflare R2, or S3.
+   - `GRAPH_URL_TOKEN=…`  — only if `GRAPH_URL` needs an `Authorization: Bearer` token
+     (e.g. a private GitHub release asset).
+   - `PORT` is provided by Railway automatically.
+4. **Pick ≥ 1 GB RAM** for the service (graph + Python). Railway gives HTTPS automatically.
 
-1. Import the GitHub repo in Vercel.
-2. Framework preset: **Other**. Root stays repo root; `vercel.json` serves the **`web/`** directory
-   (`outputDirectory: web`, no build).
-3. **Point the widget at the hosted backend.** In `web/index.html`:
-   - the widget tag `data-api="…"` → your backend's chat API URL
-   - the MCP tab's `MCP_API` constant → your backend's MCP-bridge URL
-   (For local dev these default to `http://localhost:8001` / `:8002`.)
+Build config: `railway.json` (Nixpacks start command + `/health` healthcheck), `.python-version`
+pins Python 3.12, `Procfile` mirrors the start command.
 
-Without a hosted backend, the **Overview** and **Knowledge graph** tabs still work (static),
-but **Chat** and **MCP server** tabs need the backend reachable.
+## The graph (`montana_knowledge.pkl`, ~103 MB)
 
-## Backend on a persistent host
+It's git-ignored (too big for the repo), so the host fetches it at boot via `GRAPH_URL`
+(`src/chat_api/retrieval.py::_ensure_graph_file`). Provide it one of:
+- **GitHub Release asset** — `gh release create graph-v1 src/network/exports/montana_knowledge.pkl`;
+  for a private repo, set `GRAPH_URL` to the asset's API URL and `GRAPH_URL_TOKEN` to a GitHub token.
+- **Object storage** (Cloudflare R2 / S3) — upload once, use the public/presigned URL.
+- Don't ship the multi-GB `knowledge/` crawl; only the built pickle is needed at runtime.
 
-1. Deploy the repo; `pip install -r requirements.txt` (Python 3.12).
-2. Provide the graph one of three ways:
-   - commit `montana_knowledge.pkl` via **Git LFS**, or
-   - rebuild on the host (`scripts/build_graph_fast.py`, needs `knowledge/`), or
-   - store it in object storage and download at boot.
-3. Run the processes (set env: `CHAT_PROVIDER`, `PERPLEXITY_API_KEY`, etc.):
-   - chat API: `uvicorn src.chat_api.app:app --host 0.0.0.0 --port $PORT`
-   - MCP service: `python -m src.mcp_server.server --http --host 0.0.0.0 --port 8003`
-   - (optional) MCP bridge: `MCP_SERVER_URL=… uvicorn src.mcp_demo.app:app …`
-4. Set CORS to your Vercel domain (currently permissive for the local demo).
+## Point Claude Desktop at the hosted MCP
+
+Once live, update the `-live` connector in `claude_desktop_config.json`:
+```json
+"montana-agency-knowledge-live": {
+  "command": "npx",
+  "args": ["-y", "mcp-remote", "https://YOUR-APP.up.railway.app/mcp/"]
+}
+```
 
 ## Secrets
 
-Never commit `.env` (it's git-ignored). Set `PERPLEXITY_API_KEY` / `ANTHROPIC_API_KEY` and
-`CHAT_PROVIDER` in each host's environment settings.
-
-## Local: run the whole stack
-
-```bash
-./scripts/run_stack.sh   # web :8000, chat :8001, MCP bridge :8002, MCP HTTP :8003
+`.env` is git-ignored — never commit keys. Set them in Railway's Variables.
 ```
