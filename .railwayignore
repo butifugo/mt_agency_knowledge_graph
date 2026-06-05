@@ -1,0 +1,11 @@
+.git/
+.venv/
+.venv-mcp/
+knowledge/
+data/graphs/
+src/network/exports/
+html/
+*.pkl
+*.graphml
+__pycache__/
+.env
