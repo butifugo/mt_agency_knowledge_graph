@@ -61,15 +61,21 @@ def parse_agencies_file(filepath: str) -> List[Dict[str, str]]:
         return []
 
 
-def crawl_agency(agency: Dict[str, str], config: Config, update_only: bool = False) -> Dict[str, Any]:
+def crawl_agency(
+    agency: Dict[str, str],
+    config: Config,
+    update_only: bool = False,
+    start_url: str = None,
+    max_pages: int = None
+) -> Dict[str, Any]:
     """Crawl a single agency"""
     output_dir = config.knowledge_dir / agency['folder']
-    
+
     # Skip if update_only and directory exists
     if update_only and output_dir.exists():
         print(f"ℹ Skipping {agency['name']} (already exists)")
         return {'skipped': True}
-    
+
     # Create crawler
     crawler = WebCrawler(
         base_url=agency['url'],
@@ -77,9 +83,11 @@ def crawl_agency(agency: Dict[str, str], config: Config, update_only: bool = Fal
         agency_name=agency['name'],
         rate_limit=config.get('crawling.rate_limit_delay', 1.0),
         timeout=config.get('crawling.timeout', 30),
-        user_agent=config.get('crawling.user_agent')
+        user_agent=config.get('crawling.user_agent'),
+        start_url=start_url,
+        max_pages=max_pages
     )
-    
+
     # Run crawl
     return crawler.crawl()
 
@@ -130,6 +138,23 @@ Examples:
         action='store_true',
         help='Skip agencies that already have data'
     )
+
+    parser.add_argument(
+        '--start-url',
+        type=str,
+        default=None,
+        help='Scope the crawl to a subtree URL (e.g. https://dphhs.mt.gov/aging). '
+             'Only follows HTML links under this URL. Must be on the same .mt.gov '
+             'host as the agency. Use with a single --agency to crawl a large site '
+             'one section at a time.'
+    )
+
+    parser.add_argument(
+        '--max-pages',
+        type=int,
+        default=None,
+        help='Hard cap on HTML pages to crawl (safety brake against runaway crawls).'
+    )
     
     parser.add_argument(
         '--config',
@@ -143,7 +168,20 @@ Examples:
     # Validate arguments
     if not args.all and not args.agency:
         parser.error('Must specify either --all or --agency')
-    
+
+    # --start-url scopes a single-agency crawl to one subtree; it makes no
+    # sense across --all or multiple agencies.
+    if args.start_url:
+        from urllib.parse import urlparse
+        if args.all or (args.agency and len(args.agency.split(',')) > 1):
+            parser.error('--start-url can only be used with a single --agency')
+        host = urlparse(args.start_url).netloc
+        if not host.endswith('.mt.gov'):
+            parser.error(f'--start-url must be on a .mt.gov host (got "{host or args.start_url}")')
+
+    if args.max_pages is not None and args.max_pages <= 0:
+        parser.error('--max-pages must be a positive integer')
+
     # Load configuration
     config = Config(args.config if Path(args.config).exists() else None)
     
@@ -170,7 +208,18 @@ Examples:
         agencies = all_agencies
     
     print(f"Found {len(agencies)} agenc{'y' if len(agencies) == 1 else 'ies'} to crawl\n")
-    
+
+    # Ensure --start-url stays within the targeted agency's own host
+    if args.start_url:
+        from urllib.parse import urlparse
+        agency_host = urlparse(agencies[0]['url']).netloc
+        start_host = urlparse(args.start_url).netloc
+        if start_host != agency_host:
+            parser.error(
+                f'--start-url host "{start_host}" does not match '
+                f'agency "{agencies[0]["name"]}" host "{agency_host}"'
+            )
+
     # Dry run mode
     if args.dry_run:
         print("DRY RUN MODE - No actual crawling will occur\n")
@@ -178,18 +227,23 @@ Examples:
             output_dir = config.knowledge_dir / agency['folder']
             status = "EXISTS" if output_dir.exists() else "NEW"
             print(f"[{status}] {agency['name']}")
-            print(f"  URL: {agency['url']}")
+            print(f"  URL: {args.start_url or agency['url']}")
             print(f"  Output: {output_dir}")
+            if args.max_pages is not None:
+                print(f"  Max pages: {args.max_pages}")
             print()
         return 0
-    
+
     # Crawl agencies
     results = []
     for i, agency in enumerate(agencies, 1):
         print(f"\n[{i}/{len(agencies)}] Processing: {agency['name']}")
         print("-" * 80)
-        
-        result = crawl_agency(agency, config, args.update_only)
+
+        result = crawl_agency(
+            agency, config, args.update_only,
+            start_url=args.start_url, max_pages=args.max_pages
+        )
         results.append({**agency, **result})
     
     # Print summary
