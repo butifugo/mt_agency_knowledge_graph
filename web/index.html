@@ -3,115 +3,258 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Montana State Government — Sample Agency Page</title>
+  <title>MAGPIE — Montana Agency Public Information Engine (example MCP server)</title>
   <style>
-    :root { --mt-blue:#1d4e89; --mt-gold:#ffc629; }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#1a1a1a; background:#fff; }
-    header { background:var(--mt-blue); color:#fff; padding:14px 24px; display:flex; align-items:center; gap:12px; }
-    header .seal { width:36px; height:36px; border-radius:50%; background:var(--mt-gold); color:var(--mt-blue); display:flex; align-items:center; justify-content:center; font-weight:700; }
-    header h1 { font-size:18px; margin:0; font-weight:600; }
-    nav { background:#163d6b; padding:8px 24px; }
-    nav a { color:#dce6f2; text-decoration:none; margin-right:18px; font-size:14px; }
-    nav a:hover { color:#fff; text-decoration:underline; }
-    main { max-width:1240px; margin:0 auto; padding:32px 24px 80px; }
-    h2 { color:var(--mt-blue); }
-    .lede { font-size:18px; color:#444; }
-    .card { border:1px solid #e2e5ea; border-radius:10px; padding:16px 18px; margin:18px 0; background:#fafbfc; }
-    footer { border-top:1px solid #e2e5ea; padding:20px 24px; color:#777; font-size:13px; text-align:center; }
-    .hint { background:#fff7df; border:1px solid var(--mt-gold); border-radius:8px; padding:10px 14px; font-size:14px; }
-    .stat { display:flex; gap:28px; flex-wrap:wrap; margin:6px 0 14px; }
-    .stat .n { font-size:28px; font-weight:700; color:var(--mt-blue); line-height:1.1; }
-    .stat .l { font-size:11px; color:#666; text-transform:uppercase; letter-spacing:.05em; }
-    table.reach { width:100%; border-collapse:collapse; font-size:14px; }
-    table.reach th, table.reach td { text-align:left; padding:6px 8px; border-bottom:1px solid #eef0f3; }
-    table.reach td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
-    .bar { height:8px; background:var(--mt-blue); border-radius:4px; min-width:2px; }
-    .chip { display:inline-block; background:#eef2f7; border:1px solid #dce3ec; border-radius:999px; padding:2px 10px; margin:2px; font-size:12px; }
-    ul.titles { columns:2; column-gap:24px; font-size:13px; color:#333; padding-left:18px; margin:6px 0 0; }
-    ul.titles li { margin:3px 0; break-inside:avoid; }
-    .muted { color:#888; font-size:12px; }
-    .embed { border:1px solid #cdd6e4; border-radius:10px; padding:18px 20px; margin:18px 0; background:#f4f8fd; }
+    /* MAGPIE — warm duotone system: teal primary + coral/amber warmth on a warm-white canvas. */
+    :root {
+      --bg:#fefcfa; --surface:#ffffff;
+      --ink:#1a1a2e; --ink-2:#5a5a6e; --ink-3:#8a8a9a;
+      --teal:#0ea5a5; --teal-d:#0b8585; --teal-tint:#e9faf8;
+      --coral:#ff6b5e; --coral-d:#f0463a; --amber:#f59e0b;
+      --line:#ece8e3;
+      --radius:20px; --radius-sm:12px;
+      --shadow:0 1px 2px rgba(26,26,46,.04), 0 8px 24px rgba(26,26,46,.06);
+      --shadow-lg:0 4px 12px rgba(26,26,46,.06), 0 20px 48px rgba(26,26,46,.10);
+      /* legacy aliases still referenced by inline bits */
+      --mt-blue:#1a1a2e; --mt-gold:#0ea5a5;
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      color:var(--ink); background:var(--bg); font-size:17px; line-height:1.6;
+      -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+    a { color:var(--teal-d); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    h2 { font-size:22px; font-weight:700; letter-spacing:-.01em; color:var(--ink); margin:0 0 12px; }
+    code { background:#f3efe9; padding:1px 6px; border-radius:6px; font-size:.9em;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+
+    /* ---- sticky translucent top bar (brand + tabs) ---- */
+    .topbar { position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
+      gap:16px; padding:10px 24px; background:rgba(254,252,250,.72);
+      backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+      border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .brand:hover { text-decoration:none; }
+    .brand .logo { width:34px; height:34px; flex:none; }
+    .brand-name { font-size:18px; font-weight:700; letter-spacing:.02em; color:var(--ink); }
+    nav { display:flex; gap:2px; }
+    nav .navtab { color:var(--ink-2); font-size:14.5px; padding:8px 14px; border-radius:999px;
+      border-bottom:none; cursor:pointer; transition:background .15s, color .15s; }
+    nav .navtab:hover { color:var(--ink); background:rgba(14,165,165,.08); text-decoration:none; }
+    nav .navtab.active { color:var(--teal-d); font-weight:600; background:var(--teal-tint); }
+    nav .navtab:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+
+    main { max-width:1100px; margin:0 auto; padding:0 24px 96px; }
+
+    /* ---- hero ---- */
+    .hero { position:relative; padding:72px 0 48px; overflow:hidden; }
+    .hero::before { content:""; position:absolute; inset:-20% -10% auto auto; width:560px; height:520px;
+      background:radial-gradient(closest-side, rgba(14,165,165,.20), transparent 70%),
+                 radial-gradient(closest-side, rgba(255,107,94,.18), transparent 70%);
+      background-position:30% 30%, 75% 55%; background-repeat:no-repeat;
+      filter:blur(8px); pointer-events:none; z-index:0; }
+    .hero > * { position:relative; z-index:1; }
+    .eyebrow { color:var(--teal-d); font-weight:600; font-size:14px; margin:0 0 16px; }
+    .eyebrow .dot { color:var(--coral); }
+    .hero-title { font-size:clamp(40px,6.4vw,66px); line-height:1.03; letter-spacing:-.03em; font-weight:800;
+      margin:0 0 20px; color:var(--ink); }
+    .hero-title .grad { background:linear-gradient(115deg,var(--teal) 10%,var(--coral) 90%);
+      -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .hero-sub { font-size:clamp(18px,2.1vw,21px); line-height:1.5; color:var(--ink-2); max-width:600px; margin:0 0 30px; }
+    .hero-cta { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+
+    /* ---- buttons ---- */
+    .btn { display:inline-flex; align-items:center; gap:8px; border:none; border-radius:999px; padding:14px 26px;
+      font-size:16px; font-weight:600; cursor:pointer; transition:transform .15s ease, box-shadow .2s ease, color .15s; text-decoration:none; }
+    .btn:hover { text-decoration:none; }
+    .btn-primary { background:linear-gradient(135deg,var(--coral),#ff8f5e); color:#fff; box-shadow:0 8px 22px rgba(255,107,94,.32); }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(255,107,94,.42); color:#fff; }
+    .btn-ghost { background:var(--surface); color:var(--ink); box-shadow:inset 0 0 0 1px var(--line), var(--shadow); }
+    .btn-ghost:hover { transform:translateY(-2px); color:var(--teal-d); box-shadow:inset 0 0 0 1px var(--teal), var(--shadow); }
+
+    /* ---- sections & cards ---- */
+    .section { padding:36px 0 8px; }
+    .section-title { font-size:30px; font-weight:700; letter-spacing:-.02em; margin:0 0 8px; }
+    .section-lead { color:var(--ink-2); font-size:17px; margin:0 0 22px; max-width:680px; }
+    .card { border:none; border-radius:var(--radius); padding:26px 28px; margin:20px 0; background:var(--surface); box-shadow:var(--shadow); }
+    .card > h2:first-child { margin-top:0; }
+    .lede { font-size:18px; color:var(--ink-2); }
+    .muted { color:var(--ink-3); font-size:13px; }
+
+    /* ---- how-it-works steps ---- */
+    .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin:8px 0; }
+    .step { background:var(--surface); border-radius:var(--radius); padding:24px; box-shadow:var(--shadow); transition:transform .18s, box-shadow .2s; }
+    .step:hover { transform:translateY(-3px); box-shadow:var(--shadow-lg); }
+    .step .badge { width:40px; height:40px; border-radius:12px; display:grid; place-items:center; font-weight:700; font-size:17px; margin-bottom:14px; }
+    .step h3 { margin:0 0 6px; font-size:17px; font-weight:700; letter-spacing:-.01em; }
+    .step p { margin:0; color:var(--ink-2); font-size:15px; }
+    .b-teal { background:var(--teal-tint); color:var(--teal-d); }
+    .b-amber { background:#fef3dd; color:#b97608; }
+    .b-coral { background:#ffe9e6; color:var(--coral-d); }
+    @media (max-width:760px){ .steps{ grid-template-columns:1fr; } }
+
+    /* ---- disclaimer (calm, not alarming) ---- */
+    .banner { background:#fbf6f0; border:1px solid #f0e6d8; border-radius:var(--radius-sm);
+      padding:12px 16px; margin:18px 0 0; font-size:13.5px; line-height:1.55; color:#6b5e4f; }
+    .banner code { background:#f1e7d6; }
+
+    /* ---- try-it hint ---- */
+    .hint { background:linear-gradient(135deg,var(--teal-tint),#fff); border:1px solid #d3f3ef;
+      border-radius:var(--radius); padding:20px 22px; font-size:16px; line-height:1.55; margin:20px 0; box-shadow:var(--shadow); }
+
+    /* ---- topic chips ---- */
+    .topics { display:flex; flex-wrap:wrap; gap:10px; margin:4px 0 0; }
+    .topic { background:var(--teal-tint); color:var(--teal-d); border:1px solid #d3f3ef; border-radius:999px;
+      padding:8px 16px; font-size:15px; font-weight:500; }
+
+    /* ---- stats ---- */
+    .stat { display:flex; gap:40px; flex-wrap:wrap; margin:8px 0 18px; }
+    .stat > div { display:flex; flex-direction:column; }
+    .stat .n { font-size:42px; font-weight:800; letter-spacing:-.02em; line-height:1;
+      background:linear-gradient(120deg,var(--teal),var(--coral)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .stat .l { font-size:12px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em; margin-top:8px; }
+
+    /* ---- reach table ---- */
+    table.reach { width:100%; border-collapse:collapse; font-size:14.5px; }
+    table.reach th, table.reach td { text-align:left; padding:8px 8px; border-bottom:1px solid var(--line); }
+    table.reach th { font-size:12px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+    table.reach td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; color:var(--ink); }
+    .bar { height:8px; background:linear-gradient(90deg,var(--teal),var(--coral)); border-radius:999px; min-width:2px; }
+    .chip { display:inline-block; background:var(--teal-tint); border:1px solid #d3f3ef; color:var(--teal-d);
+      border-radius:999px; padding:4px 12px; margin:2px; font-size:13px; }
+    ul.titles { columns:2; column-gap:28px; font-size:13.5px; color:var(--ink-2); padding-left:18px; margin:6px 0 0; }
+    ul.titles li { margin:4px 0; break-inside:avoid; }
+
+    /* ---- embed card ---- */
+    .embed { border:none; border-radius:var(--radius); padding:26px 28px; margin:20px 0; background:var(--surface); box-shadow:var(--shadow); }
     .embed h2 { margin-top:0; }
-    .embed ol { margin:10px 0 0; padding-left:20px; font-size:14px; line-height:1.6; }
-    .embed code { background:#e7edf6; padding:1px 5px; border-radius:4px; font-size:13px; }
-    .embed-snippet { position:relative; margin:12px 0 6px; }
-    .embed-snippet pre { margin:0; background:#0f2238; color:#e6edf5; border-radius:8px; padding:14px 48px 14px 16px;
-      overflow-x:auto; font-size:13px; line-height:1.5; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
-    .embed-copy { position:absolute; top:8px; right:8px; background:var(--mt-gold); color:#1a1a1a; border:none;
-      border-radius:6px; padding:6px 12px; font-size:13px; font-weight:600; cursor:pointer; }
-    .embed-copy:focus-visible { outline:3px solid var(--mt-blue); outline-offset:2px; }
-    .embed-copy.copied { background:#1f8a4c; color:#fff; }
-    .embed-note { font-size:13px; color:#555; margin:6px 0 0; }
-    .tabs { display:flex; gap:6px; border-bottom:2px solid #e2e5ea; margin:18px 0 4px; }
-    .tab { background:none; border:none; padding:10px 16px; font-size:15px; cursor:pointer; color:#555; border-bottom:3px solid transparent; margin-bottom:-2px; }
-    .tab:hover { color:var(--mt-blue); }
-    .tab.active { color:var(--mt-blue); font-weight:600; border-bottom-color:var(--mt-blue); }
-    .tab:focus-visible { outline:2px solid var(--mt-blue); outline-offset:2px; }
-    #graph-holder { position:relative; width:100%; height:560px; border:1px solid #e2e5ea; border-radius:10px; background:#fbfcfe; overflow:hidden; }
+    .embed ol { margin:10px 0 0; padding-left:20px; font-size:15px; line-height:1.6; }
+    .embed-snippet { position:relative; margin:14px 0 8px; }
+    .embed-snippet pre { margin:0; background:#171728; color:#e9edf3; border-radius:14px; padding:18px 56px 18px 18px;
+      overflow-x:auto; font-size:13px; line-height:1.55; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .embed-snippet code { background:transparent; padding:0; }
+    .embed-copy { position:absolute; top:10px; right:10px; background:var(--teal); color:#fff; border:none;
+      border-radius:999px; padding:7px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s; }
+    .embed-copy:hover { background:var(--teal-d); }
+    .embed-copy:focus-visible { outline:3px solid var(--coral); outline-offset:2px; }
+    .embed-copy.copied { background:#1f8a4c; }
+    .embed-note { font-size:14px; color:var(--ink-2); margin:8px 0 0; }
+
+    /* ---- footer ---- */
+    footer { border-top:1px solid var(--line); padding:36px 24px; color:var(--ink-3); font-size:13px; line-height:1.6; text-align:center; }
+
+    /* ---- knowledge graph ---- */
+    #graph-holder { position:relative; width:100%; height:560px; border:1px solid var(--line); border-radius:var(--radius); background:#fbfaf8; overflow:hidden; box-shadow:var(--shadow); }
     #graph-svg { width:100%; height:100%; display:block; cursor:grab; }
     .legend { display:flex; flex-wrap:wrap; gap:10px; margin:8px 0 12px; font-size:12px; }
-    .legend .item { display:flex; align-items:center; gap:5px; }
+    .legend .item { display:flex; align-items:center; gap:5px; color:var(--ink-2); }
     .legend .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }
     .gnode { cursor:pointer; stroke:#fff; stroke-width:1px; }
-    .glink { stroke:#c8d2e0; stroke-opacity:.5; }
-    .glabel { font-size:9px; fill:#333; pointer-events:none; paint-order:stroke; stroke:#fff; stroke-width:2px; }
-    .gtip { position:absolute; pointer-events:none; background:#0f2238; color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; max-width:260px; opacity:0; transition:opacity .1s; }
-    .graph-controls { display:flex; align-items:center; gap:8px; margin:6px 0 10px; font-size:14px; flex-wrap:wrap; }
-    .graph-controls select { border:1px solid #c7ccd4; border-radius:8px; padding:6px 8px; font-size:14px; }
-    .graph-row { display:flex; gap:12px; align-items:stretch; }
+    .glink { stroke:#d8cfc4; stroke-opacity:.55; }
+    .glabel { font-size:9px; fill:var(--ink); pointer-events:none; paint-order:stroke; stroke:#fff; stroke-width:2px; }
+    .gtip { position:absolute; pointer-events:none; background:var(--ink); color:#fff; padding:5px 9px; border-radius:8px; font-size:12px; max-width:260px; opacity:0; transition:opacity .1s; }
+    .graph-controls { display:flex; align-items:center; gap:8px; margin:8px 0 12px; font-size:14px; flex-wrap:wrap; }
+    .graph-controls label { color:var(--ink-2); font-size:13px; }
+    .graph-controls select, .mcp-call select, .mcp-call input { border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-size:14px; background:var(--surface); color:var(--ink); }
+    .graph-controls select:focus, .mcp-call select:focus, .mcp-call input:focus { outline:2px solid var(--teal); outline-offset:0; }
+    .graph-row { display:flex; gap:14px; align-items:stretch; }
     .graph-row #graph-holder { flex:1; width:auto; }
-    .graph-detail { width:300px; flex:none; border:1px solid #e2e5ea; border-radius:10px; padding:12px 14px; background:#fff; overflow:auto; max-height:560px; font-size:13px; }
-    .graph-detail h3 { margin:0 0 6px; font-size:15px; color:var(--mt-blue); word-break:break-word; }
-    .graph-detail .rel { margin-top:10px; } .graph-detail .rel b { display:block; font-size:12px; color:#555; margin-bottom:3px; }
+    .graph-detail { width:300px; flex:none; border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; background:var(--surface); overflow:auto; max-height:560px; font-size:13.5px; box-shadow:var(--shadow); }
+    .graph-detail h3 { margin:0 0 6px; font-size:15px; color:var(--teal-d); word-break:break-word; }
+    .graph-detail .rel { margin-top:10px; } .graph-detail .rel b { display:block; font-size:12px; color:var(--ink-2); margin-bottom:3px; }
     .graph-detail ul { margin:0; padding-left:16px; } .graph-detail li { margin:2px 0; word-break:break-word; }
-    .gnode.sel { stroke:#111; stroke-width:3px; }
+    .gnode.sel { stroke:var(--ink); stroke-width:3px; }
     @media (max-width:760px){ .graph-row{flex-direction:column;} .graph-detail{width:auto;max-height:280px;} }
-    #mcp-tools { font-size:14px; }
-    #mcp-tools code { background:#e7edf6; padding:1px 5px; border-radius:4px; }
-    .mcp-call { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
-    .mcp-call select, .mcp-call input { border:1px solid #c7ccd4; border-radius:8px; padding:8px 10px; font-size:14px; }
+
+    /* ---- MCP tab ---- */
+    #mcp-tools { font-size:14.5px; padding-left:18px; } #mcp-tools li { margin:5px 0; }
+    .mcp-call { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:14px 0; }
     .mcp-call input { flex:1; min-width:220px; }
-    .mcp-call button { background:var(--mt-blue); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:14px; cursor:pointer; }
-    #mcp-results ol { padding-left:20px; font-size:14px; } #mcp-results li { margin:3px 0; }
-    .mcp-pre { background:#0f2238; color:#e6edf5; border-radius:8px; padding:12px 14px; overflow:auto; max-height:320px; font-size:12px; white-space:pre-wrap; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .mcp-call button { background:var(--teal); color:#fff; border:none; border-radius:999px; padding:11px 22px; font-size:14px; font-weight:600; cursor:pointer; transition:background .15s; }
+    .mcp-call button:hover { background:var(--teal-d); }
+    #mcp-results ol { padding-left:20px; font-size:14.5px; } #mcp-results li { margin:4px 0; }
+    .mcp-pre { background:#171728; color:#e9edf3; border-radius:14px; padding:16px 18px; overflow:auto; max-height:320px; font-size:12px; white-space:pre-wrap; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="seal">MT</div>
-    <h1>Montana State Government</h1>
+  <header class="topbar">
+    <a class="brand" href="#overview" id="navtab-overview-brand" aria-label="MAGPIE home">
+      <img class="logo" src="magpie.svg" alt="MAGPIE logo" />
+      <span class="brand-name">MAGPIE</span>
+    </a>
+    <nav role="tablist" aria-label="Sections">
+      <a href="#overview" class="navtab active" id="navtab-overview" role="tab" aria-selected="true" aria-controls="tab-overview">Overview</a>
+      <a href="#graph" class="navtab" id="navtab-graph" role="tab" aria-selected="false" aria-controls="tab-graph">Knowledge graph</a>
+      <a href="#mcp" class="navtab" id="navtab-mcp" role="tab" aria-selected="false" aria-controls="tab-mcp">MCP server</a>
+    </nav>
   </header>
-  <nav>
-    <a href="#">Home</a><a href="#">Agencies</a><a href="#">Services</a><a href="#">Contact</a>
-  </nav>
 
   <main>
-    <h2>Welcome to Montana.gov</h2>
-    <p class="lede">Find programs, services, and information across Montana state agencies.</p>
-
-    <div class="tabs" role="tablist" aria-label="Demo views">
-      <button class="tab active" id="tabbtn-overview" role="tab" aria-selected="true" aria-controls="tab-overview">Overview</button>
-      <button class="tab" id="tabbtn-graph" role="tab" aria-selected="false" aria-controls="tab-graph">Knowledge graph</button>
-      <button class="tab" id="tabbtn-mcp" role="tab" aria-selected="false" aria-controls="tab-mcp">MCP server</button>
+    <div class="banner" role="note">
+      <strong>Unofficial example project.</strong> MAGPIE is a developer demo — <em>not</em> an official
+      State of Montana website and not affiliated with or endorsed by the State of Montana. It only reads
+      <em>public</em> agency web pages. For official information, visit the agency's own <code>.mt.gov</code> site.
     </div>
 
-    <section id="tab-overview" class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-overview">
+    <section id="tab-overview" class="tabpanel" role="tabpanel" aria-labelledby="navtab-overview">
+    <div class="hero">
+      <p class="eyebrow">Montana Agency Public Information Engine <span class="dot">·</span> an example
+        <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a> server</p>
+      <h1 class="hero-title" id="what">Ask Montana<br />anything <span class="grad">public</span>.</h1>
+      <p class="hero-sub">
+        MAGPIE reads public state-agency websites, builds a knowledge graph of what it finds, and answers
+        questions — <em>grounded in and cited back to</em> the original pages.
+      </p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" id="hero-ask" type="button">Ask MAGPIE →</button>
+        <a class="btn btn-ghost" href="#mcp">Explore the MCP server</a>
+      </div>
+    </div>
+
+    <section class="section" aria-label="How it works">
+      <h2 class="section-title">How it works</h2>
+      <p class="section-lead">Three steps from a public web page to a cited answer — the same knowledge graph
+        powers this page's chat widget and the MCP tools an AI client can call.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="badge b-teal">1</div>
+          <h3>Crawl</h3>
+          <p>MAGPIE reads <em>public</em> pages across 37+ Montana <code>.mt.gov</code> agency sites — HTML, PDF, and DOCX.</p>
+        </div>
+        <div class="step">
+          <div class="badge b-amber">2</div>
+          <h3>Connect</h3>
+          <p>It builds a per-agency knowledge graph, linking documents by topic, keyword, and meaning.</p>
+        </div>
+        <div class="step">
+          <div class="badge b-coral">3</div>
+          <h3>Answer</h3>
+          <p>Questions are answered from that graph and cited straight back to the source agency page.</p>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:14px">
+        M·AG·P·I·E → <strong>M</strong>ontana · <strong>AG</strong>ency · <strong>P</strong>ublic ·
+        <strong>I</strong>nformation · <strong>E</strong>ngine. Named for the black-billed magpie — a sharp,
+        resourceful bird you'll find all over Montana.
+      </p>
+    </section>
+
     <p class="hint">
-      👉 This is a <strong>sample page</strong> for the answer widget. Click the chat button in the
-      bottom-right corner and ask something like <em>“How do I get a pesticide license?”</em> or
-      <em>“How do I file a consumer complaint?”</em>
+      💬 <strong>Try it.</strong> Tap <strong>Ask MAGPIE</strong> (or the chat button, bottom-right) and ask
+      something like <em>“How do I get a pesticide license?”</em> or <em>“How do I file a consumer complaint?”</em>
+      Answers come straight from public agency pages, with citations.
     </p>
 
-    <div class="card">
-      <h2>Popular topics</h2>
-      <ul>
-        <li>Licensing, registration &amp; certification</li>
-        <li>Employment &amp; workforce services</li>
-        <li>Consumer protection &amp; complaints</li>
-        <li>Business &amp; commerce resources</li>
-      </ul>
-    </div>
+    <section class="section">
+      <h2 class="section-title">Popular topics</h2>
+      <div class="topics">
+        <span class="topic">Licensing, registration &amp; certification</span>
+        <span class="topic">Employment &amp; workforce services</span>
+        <span class="topic">Consumer protection &amp; complaints</span>
+        <span class="topic">Business &amp; commerce resources</span>
+      </div>
+    </section>
 
     <div class="embed">
       <h2>Add this chat to your own site</h2>
@@ -120,15 +263,15 @@
         bottom-right corner.</p>
       <div class="embed-snippet">
         <button type="button" class="embed-copy" id="embed-copy" aria-label="Copy embed code">Copy</button>
-        <pre><code id="embed-code">&lt;script src="https://YOUR-CHAT-API.mt.gov/widget.js"
-        data-api="https://YOUR-CHAT-API.mt.gov"&gt;&lt;/script&gt;</code></pre>
+        <pre><code id="embed-code">&lt;script src="https://YOUR-CHAT-HOST.example.com/widget.js"
+        data-api="https://YOUR-CHAT-HOST.example.com"&gt;&lt;/script&gt;</code></pre>
         <!-- The clipboard copy is normalized in JS so paste output is clean regardless of source indent. -->
       </div>
       <p class="embed-note">
-        Replace <code>YOUR-CHAT-API.mt.gov</code> in <strong>both</strong> places with the
+        Replace <code>YOUR-CHAT-HOST.example.com</code> in <strong>both</strong> places with the
         address of your hosted answer service. <code>data-api</code> is where the widget sends
         questions; it must point at the live <code>/chat</code> API, not <code>localhost</code>.
-        Don't have a hosted API yet? Contact the Knowledge Network team to get one provisioned.
+        This is an example project — you host the MAGPIE chat API yourself.
       </p>
     </div>
 
@@ -143,7 +286,7 @@
     </div>
     </section>
 
-    <section id="tab-graph" class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-graph" hidden>
+    <section id="tab-graph" class="tabpanel" role="tabpanel" aria-labelledby="navtab-graph" hidden>
       <div class="card">
         <h2>Knowledge graph</h2>
         <p class="muted" id="graph-status">Loading a sampled view of the knowledge graph…</p>
@@ -174,7 +317,7 @@
       </div>
     </section>
 
-    <section id="tab-mcp" class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-mcp" hidden>
+    <section id="tab-mcp" class="tabpanel" role="tabpanel" aria-labelledby="navtab-mcp" hidden>
       <div class="card">
         <h2>MCP server (live)</h2>
         <p class="muted" id="mcp-status">Connecting to the MCP server…</p>
@@ -197,7 +340,11 @@
     </section>
   </main>
 
-  <footer>Sample demo page · not an official Montana state website.</footer>
+  <footer>
+    <strong>MAGPIE</strong> — Montana Agency Public Information Engine · an unofficial example MCP server.<br />
+    Not affiliated with, endorsed by, or operated by the State of Montana. Reads public agency content only;
+    for official information visit the agency's own <code>.mt.gov</code> website.
+  </footer>
 
   <!-- Content-reach panel: renders web/coverage.json (built by scripts/build_coverage.py). -->
   <script>
@@ -298,19 +445,28 @@
     function el(id) { return document.getElementById(id); }
     function mcpEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
-    function show(name) {
+    function show(name, push) {
+      if (TABS.indexOf(name) < 0) name = 'overview';
       TABS.forEach(function (t) {
-        var on = t === name, pan = el('tab-' + t), btn = el('tabbtn-' + t);
+        var on = t === name, pan = el('tab-' + t), btn = el('navtab-' + t);
         if (pan) pan.hidden = !on;
         if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-selected', String(on)); }
       });
+      if (push && location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
+      window.scrollTo(0, 0);
       if (!inited[name]) {
         inited[name] = true;
         if (name === 'graph') renderGraph();
         if (name === 'mcp') initMcp();
       }
     }
-    TABS.forEach(function (t) { var b = el('tabbtn-' + t); if (b) b.addEventListener('click', function () { show(t); }); });
+    TABS.forEach(function (t) {
+      var b = el('navtab-' + t);
+      if (b) b.addEventListener('click', function (e) { e.preventDefault(); show(t, true); });
+    });
+    window.addEventListener('hashchange', function () { show((location.hash || '').replace('#', '')); });
+    // Honor a deep link (e.g. #graph, #mcp) on first load; default to overview.
+    show((location.hash || '').replace('#', ''));
 
     function initMcp() {
       var status = el('mcp-status');
@@ -561,5 +717,17 @@
   <!-- Same-origin in the unified app: the widget posts to /chat on this host. -->
   <script>window.MT_CHAT_API = window.location.origin;</script>
   <script src="widget.js"></script>
+
+  <!-- Hero CTA opens the chat widget (widget.js renders the launcher as .mtchat-launch). -->
+  <script>
+  (function () {
+    var ask = document.getElementById('hero-ask');
+    if (!ask) return;
+    ask.addEventListener('click', function () {
+      var launch = document.querySelector('.mtchat-launch');
+      if (launch && !document.querySelector('.mtchat-panel.mtchat-open')) launch.click();
+    });
+  })();
+  </script>
 </body>
 </html>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MAGPIE logo — a stylized magpie">
+  <title>MAGPIE</title>
+
+  <!-- badge -->
+  <circle cx="32" cy="32" r="31" fill="#f3f7f6" stroke="#22223b" stroke-width="2"/>
+
+  <!-- teal tail (iridescence) -->
+  <path d="M33 31 L58 10 L61 16 L38 35 Z" fill="#2dd4bf"/>
+
+  <!-- ink body + head -->
+  <ellipse cx="28" cy="32" rx="13" ry="9.5" transform="rotate(-17 28 32)" fill="#22223b"/>
+  <circle cx="18" cy="23" r="7" fill="#22223b"/>
+
+  <!-- beak -->
+  <path d="M12 20.5 L3 23.5 L12 26 Z" fill="#22223b"/>
+
+  <!-- white belly -->
+  <path d="M16 37 Q25 45 35 38 Q27 39 22.5 35.5 Q18.5 33 16 37 Z" fill="#ffffff"/>
+  <!-- white wing slash -->
+  <ellipse cx="31" cy="28" rx="5.4" ry="2.3" transform="rotate(-20 31 28)" fill="#ffffff"/>
+  <!-- eye -->
+  <circle cx="16.5" cy="21" r="1.7" fill="#ffffff"/>
+</svg>

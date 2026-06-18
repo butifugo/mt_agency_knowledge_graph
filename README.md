@@ -1,6 +1,14 @@
-# Montana State Government Knowledge Network
+# MAGPIE — Montana Agency Public Information Engine
 
-An AI-powered knowledge base system that crawls, processes, and visualizes content from Montana State Government agencies. The system creates interconnected knowledge graphs optimized for AI/RAG systems with interactive visualizations.
+**MAGPIE** stands for the **M**ontana **AG**ency **P**ublic **I**nformation **E**ngine — named for the
+black-billed magpie, a sharp, resourceful bird found all over Montana. It's an **unofficial example
+MCP server**: it crawls *public* Montana state-agency websites, builds interconnected knowledge graphs
+optimized for AI/RAG, and exposes them to AI clients (and an embeddable chat widget) with answers cited
+back to the source pages.
+
+> ⚠️ **Unofficial example project.** MAGPIE is a developer demo — not affiliated with, endorsed by, or
+> operated by the State of Montana. It reads public agency content only. For official information, visit
+> the agency's own `.mt.gov` website.
 
 ## 🎯 What It Does
 

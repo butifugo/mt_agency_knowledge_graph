@@ -1,5 +1,6 @@
 /*
- * Montana Agency Answer widget — a self-contained, drop-in chatbot.
+ * MAGPIE chat widget — Montana Agency Public Information Engine.
+ * A self-contained, drop-in chatbot for an unofficial example MCP server.
  *
  * Embed on any page with a single tag:
  *   <script src="widget.js" data-api="http://localhost:8001"></script>
@@ -17,30 +18,31 @@
     "http://localhost:8001";
 
   var DISCLAIMER =
-    "AI-generated from public Montana agency pages. Verify important details on the source site.";
+    "MAGPIE is an unofficial example tool. AI-generated from public Montana agency pages — " +
+    "verify important details on the source .mt.gov site.";
 
   // ---- styles (prefixed to avoid clashing with the host page) -------------
   var css =
     "" +
     ".mtchat-launch{position:fixed;right:20px;bottom:20px;width:56px;height:56px;border-radius:50%;" +
-    "background:#1d4e89;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);" +
+    "background:#22223b;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);" +
     "font-size:24px;line-height:56px;z-index:2147483000}" +
-    ".mtchat-launch:focus-visible{outline:3px solid #ffc629;outline-offset:2px}" +
+    ".mtchat-launch:focus-visible{outline:3px solid #2dd4bf;outline-offset:2px}" +
     ".mtchat-panel{position:fixed;right:20px;bottom:88px;width:360px;max-width:calc(100vw - 32px);" +
     "height:520px;max-height:calc(100vh - 120px);background:#fff;border-radius:12px;display:none;" +
     "flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.35);z-index:2147483000;" +
     "font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a}" +
     ".mtchat-panel.mtchat-open{display:flex}" +
-    ".mtchat-head{background:#1d4e89;color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between}" +
+    ".mtchat-head{background:#22223b;color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between}" +
     ".mtchat-head h2{margin:0;font-size:15px;font-weight:600}" +
     ".mtchat-head p{margin:2px 0 0;font-size:11px;opacity:.85}" +
     ".mtchat-close{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;padding:4px;border-radius:6px}" +
-    ".mtchat-close:focus-visible{outline:2px solid #ffc629}" +
+    ".mtchat-close:focus-visible{outline:2px solid #2dd4bf}" +
     ".mtchat-log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;background:#f5f6f8}" +
     ".mtchat-msg{max-width:88%;padding:9px 12px;border-radius:12px;font-size:14px;line-height:1.45;white-space:pre-wrap}" +
-    ".mtchat-user{align-self:flex-end;background:#1d4e89;color:#fff;border-bottom-right-radius:3px}" +
+    ".mtchat-user{align-self:flex-end;background:#22223b;color:#fff;border-bottom-right-radius:3px}" +
     ".mtchat-bot{align-self:flex-start;background:#fff;border:1px solid #e2e5ea;border-bottom-left-radius:3px;white-space:normal}" +
-    ".mtchat-bot a{color:#1d4e89}" +
+    ".mtchat-bot a{color:#22223b}" +
     ".mtchat-bot p{margin:0 0 8px}.mtchat-bot p:last-child{margin-bottom:0}" +
     ".mtchat-bot ul,.mtchat-bot ol{margin:6px 0;padding-left:20px}.mtchat-bot li{margin:2px 0}" +
     ".mtchat-bot code{background:#eef1f4;border-radius:4px;padding:1px 4px;font-size:12px;" +
@@ -48,10 +50,10 @@
     ".mtchat-bot .mtchat-h{font-weight:600;margin:8px 0 4px}.mtchat-bot .mtchat-h:first-child{margin-top:0}" +
     ".mtchat-fups{margin-top:10px;display:flex;flex-direction:column;gap:6px}" +
     ".mtchat-fups b{font-size:12px;color:#555;font-weight:600}" +
-    ".mtchat-fup{text-align:left;background:#eef2f8;border:1px solid #d5deec;color:#1d4e89;" +
+    ".mtchat-fup{text-align:left;background:#eef2f8;border:1px solid #d5deec;color:#22223b;" +
     "border-radius:8px;padding:7px 10px;font-size:13px;cursor:pointer;line-height:1.35}" +
     ".mtchat-fup:hover{background:#e2e9f5}" +
-    ".mtchat-fup:focus-visible{outline:2px solid #1d4e89;outline-offset:1px}" +
+    ".mtchat-fup:focus-visible{outline:2px solid #22223b;outline-offset:1px}" +
     ".mtchat-srcs{margin-top:8px;font-size:12px;border-top:1px solid #e2e5ea;padding-top:6px}" +
     ".mtchat-srcs b{display:block;margin-bottom:4px;color:#555;font-weight:600}" +
     ".mtchat-srcs ol{margin:0;padding-left:18px}" +
@@ -59,8 +61,8 @@
     ".mtchat-disc{font-size:11px;color:#777;padding:6px 14px;background:#f5f6f8;border-top:1px solid #e2e5ea}" +
     ".mtchat-form{display:flex;gap:6px;padding:10px;border-top:1px solid #e2e5ea;background:#fff}" +
     ".mtchat-input{flex:1;border:1px solid #c7ccd4;border-radius:8px;padding:9px 10px;font-size:14px;min-height:24px}" +
-    ".mtchat-input:focus-visible{outline:2px solid #1d4e89;border-color:#1d4e89}" +
-    ".mtchat-send{background:#1d4e89;color:#fff;border:none;border-radius:8px;padding:0 14px;cursor:pointer;font-size:14px;min-width:48px}" +
+    ".mtchat-input:focus-visible{outline:2px solid #22223b;border-color:#22223b}" +
+    ".mtchat-send{background:#22223b;color:#fff;border:none;border-radius:8px;padding:0 14px;cursor:pointer;font-size:14px;min-width:48px}" +
     ".mtchat-send:disabled{opacity:.5;cursor:default}" +
     ".mtchat-dots{display:inline-block}" +
     ".mtchat-dots:after{content:'…';animation:mtchat-blink 1.2s infinite}" +
@@ -73,16 +75,16 @@
   // ---- markup --------------------------------------------------------------
   var launch = document.createElement("button");
   launch.className = "mtchat-launch";
-  launch.setAttribute("aria-label", "Open the Montana help chat");
+  launch.setAttribute("aria-label", "Open MAGPIE chat");
   launch.innerHTML = "&#128172;"; // speech balloon
 
   var panel = document.createElement("div");
   panel.className = "mtchat-panel";
   panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "Montana agency help chat");
+  panel.setAttribute("aria-label", "MAGPIE — Montana agency help chat");
   panel.innerHTML =
     '<div class="mtchat-head">' +
-    "<div><h2>Ask Montana</h2><p>Answers from state agency websites</p></div>" +
+    "<div><h2>Ask MAGPIE</h2><p>Public Montana agency websites · unofficial</p></div>" +
     '<button class="mtchat-close" aria-label="Close chat">&times;</button>' +
     "</div>" +
     '<div class="mtchat-log" id="mtchat-log" aria-live="polite"></div>' +
