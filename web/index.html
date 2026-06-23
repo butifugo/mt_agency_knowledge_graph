@@ -187,6 +187,7 @@
       <a href="#overview" class="navtab active" id="navtab-overview" role="tab" aria-selected="true" aria-controls="tab-overview">Overview</a>
       <a href="#graph" class="navtab" id="navtab-graph" role="tab" aria-selected="false" aria-controls="tab-graph">Knowledge graph</a>
       <a href="#mcp" class="navtab" id="navtab-mcp" role="tab" aria-selected="false" aria-controls="tab-mcp">MCP server</a>
+      <a href="#samples" class="navtab" id="navtab-samples" role="tab" aria-selected="false" aria-controls="tab-samples">Samples</a>
     </nav>
   </header>
 
@@ -338,6 +339,41 @@
         <pre id="mcp-out" class="mcp-pre">Run a tool above to see the live MCP result.</pre>
       </div>
     </section>
+
+    <section id="tab-samples" class="tabpanel" role="tabpanel" aria-labelledby="navtab-samples" hidden>
+      <section class="section">
+        <h2 class="section-title">Guided agent samples</h2>
+        <p class="section-lead">Beyond open Q&amp;A, the same knowledge graph can drive <strong>guided
+          expert personas</strong> — agents with a goal, a staged flow, and a focused slice of the graph
+          to draw on. Each persona is just a config file, so new ones drop in without code.</p>
+
+        <div class="card">
+          <h2>Community Planning Guide</h2>
+          <p class="lede">Walks a local planner, economic developer, or prospecting company through
+            building a planning document — or sizing up a Montana community for a project — one step at
+            a time, grounded in the Department of Commerce
+            <a href="https://commerce.mt.gov/Infrastructure-Planning/Community-Planning-Platform/" target="_blank" rel="noopener">Community
+            Planning Platform</a> with cited sources. It remembers where you are and assembles your plan
+            as you go.</p>
+          <div class="steps">
+            <div class="step"><div class="badge b-teal">1</div><h3>Orient &amp; scope</h3>
+              <p>Building a plan, or evaluating a community? Which community, and which plan type?</p></div>
+            <div class="step"><div class="badge b-amber">2</div><h3>Ground &amp; scaffold</h3>
+              <p>Pulls the matching guidance and assembles a plan outline you watch take shape.</p></div>
+            <div class="step"><div class="badge b-coral">3</div><h3>Fund &amp; act</h3>
+              <p>Maps you to the right program (CDBG, Main Street, SLIPA…) and the next office to contact.</p></div>
+          </div>
+          <div class="hero-cta" style="margin-top:18px">
+            <button class="btn btn-primary" id="launch-cpg" type="button">Launch the guided demo →</button>
+            <a class="btn btn-ghost" href="planning.html">Open as a standalone page</a>
+          </div>
+          <p class="muted" style="margin-top:14px">Configured entirely in
+            <code>personas/community-planning-guide.yaml</code> — scope, goals, stages, and voice in one
+            file. The same persona is also exposed to AI clients as the
+            <code>community_planning_guide</code> MCP tool.</p>
+        </div>
+      </section>
+    </section>
   </main>
 
   <footer>
@@ -440,7 +476,7 @@
   <script>
   (function () {
     var MCP_API = window.location.origin;  // same-origin: the unified app serves the bridge too
-    var TABS = ['overview', 'graph', 'mcp'];
+    var TABS = ['overview', 'graph', 'mcp', 'samples'];
     var inited = {};
     function el(id) { return document.getElementById(id); }
     function mcpEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -726,6 +762,18 @@
     ask.addEventListener('click', function () {
       var launch = document.querySelector('.mtchat-launch');
       if (launch && !document.querySelector('.mtchat-panel.mtchat-open')) launch.click();
+    });
+  })();
+  </script>
+
+  <!-- Samples tab: launch the guided persona in the same widget via window.MAGPIE.startPersona. -->
+  <script>
+  (function () {
+    var b = document.getElementById('launch-cpg');
+    if (b) b.addEventListener('click', function () {
+      if (window.MAGPIE && window.MAGPIE.startPersona) {
+        window.MAGPIE.startPersona('community-planning-guide');
+      }
     });
   })();
   </script>

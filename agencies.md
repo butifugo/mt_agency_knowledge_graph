@@ -55,6 +55,27 @@ Each agency is listed with:
 
 ---
 
+## Secondary Data Sources (documented, not yet ingested)
+
+These are additional sources that belong to an existing agency's corpus but are **not** standalone
+agencies. They are intentionally written as prose (not a parseable table row) so the crawler does
+**not** auto-crawl them via `--all`; ingestion happens deliberately once a viable extraction path
+exists. When ingested, content goes in its own folder and is folded into the owning agency in the
+knowledge graph via `resolve_agency` in `src/network/graph_builder.py`.
+
+- **Commerce — Community Data (Tableau)** · base URL `https://tableau-ext.mt.gov/` · intended
+  folder `commerce-tableau` · folds into agency **commerce**.
+  Status: **DEFERRED**. This is a Tableau Server (vizportal) single-page app — the static
+  HTML/PDF/DOCX crawler extracts nothing (the root is a ~1.3 KB JS shell with no links/text, and
+  `robots.txt`/`sitemap.xml` 404). Content *is* reachable two ways, both needing a discovery step:
+  (1) anonymous **PDF export** of a *known* view URL works
+  (`/t/<SITE>/views/<Workbook>/<Sheet>.pdf`), but the commerce view URLs aren't embedded in any
+  crawlable commerce page; (2) the Tableau **REST API** (`restApiVersion 3.25`) can list views but
+  requires an authenticated token (401 anonymously). Revisit when a list of commerce view URLs or
+  a Personal Access Token is available.
+
+---
+
 ## Special Notes
 
 ### External Domains
@@ -69,5 +90,6 @@ Note: `Auditor` and `Securities & Insurance, Commissioner of` share the same dom
 
 ---
 
-**Last Updated:** December 5, 2025
+**Last Updated:** June 19, 2026
 **Total Agencies:** 38
+**Secondary data sources:** 1 documented, deferred (tableau-ext.mt.gov → commerce; see above)

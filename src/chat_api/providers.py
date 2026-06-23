@@ -5,9 +5,13 @@ The synthesis step is the ONLY place that talks to an LLM. Swap providers by set
 graph, MCP) is untouched. Adding a provider = one small class + one registry entry.
 """
 import os
-from typing import Tuple
+from typing import Dict, List, Optional
 
 import httpx
+
+# A prior conversation turn: {"role": "user"|"assistant", "content": str}. Personas pass these
+# so the model has multi-turn context; the single-turn assistant passes None (no change).
+History = Optional[List[Dict[str, str]]]
 
 MAX_TOKENS = 1536  # headroom so the trailing <<FOLLOWUPS>> block isn't truncated
 _PLACEHOLDER = "your-"  # unedited value in .env.example
@@ -26,7 +30,7 @@ class LLMProvider:
     name = "base"
     model = ""
 
-    def complete(self, system_text: str, user_text: str) -> str:
+    def complete(self, system_text: str, user_text: str, history: History = None) -> str:
         raise NotImplementedError
 
 
@@ -44,13 +48,13 @@ class PerplexityProvider(LLMProvider):
             d.strip() for d in os.getenv("PERPLEXITY_SEARCH_DOMAINS", "").split(",") if d.strip()
         ]
 
-    def build_payload(self, system_text: str, user_text: str) -> dict:
+    def build_payload(self, system_text: str, user_text: str, history: History = None) -> dict:
+        messages = [{"role": "system", "content": system_text}]
+        messages += [{"role": h["role"], "content": h["content"]} for h in (history or [])]
+        messages.append({"role": "user", "content": user_text})
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_text},
-                {"role": "user", "content": user_text},
-            ],
+            "messages": messages,
             "max_tokens": MAX_TOKENS,
             "temperature": 0.1,
         }
@@ -58,7 +62,7 @@ class PerplexityProvider(LLMProvider):
             payload["search_domain_filter"] = self.search_domains
         return payload
 
-    def complete(self, system_text: str, user_text: str) -> str:
+    def complete(self, system_text: str, user_text: str, history: History = None) -> str:
         if not self.api_key:
             raise MissingAPIKey(
                 "PERPLEXITY_API_KEY is not set. Add it to .env (CHAT_PROVIDER=perplexity)."
@@ -69,7 +73,7 @@ class PerplexityProvider(LLMProvider):
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             },
-            json=self.build_payload(system_text, user_text),
+            json=self.build_payload(system_text, user_text, history),
             timeout=60.0,
         )
         resp.raise_for_status()
@@ -88,19 +92,21 @@ class AnthropicProvider(LLMProvider):
             os.getenv("ANTHROPIC_MODEL") or os.getenv("CHAT_MODEL") or "claude-haiku-4-5"
         ).strip()
 
-    def complete(self, system_text: str, user_text: str) -> str:
+    def complete(self, system_text: str, user_text: str, history: History = None) -> str:
         if not self.api_key:
             raise MissingAPIKey(
                 "ANTHROPIC_API_KEY is not set. Add it to .env (CHAT_PROVIDER=anthropic)."
             )
         import anthropic  # imported lazily so this provider is optional
 
+        messages = [{"role": h["role"], "content": h["content"]} for h in (history or [])]
+        messages.append({"role": "user", "content": user_text})
         client = anthropic.Anthropic(api_key=self.api_key)
         message = client.messages.create(
             model=self.model,
             max_tokens=MAX_TOKENS,
             system=[{"type": "text", "text": system_text, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": user_text}],
+            messages=messages,
         )
         return "".join(
             b.text for b in message.content if getattr(b, "type", None) == "text"

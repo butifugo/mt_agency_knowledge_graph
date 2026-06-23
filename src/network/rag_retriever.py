@@ -6,7 +6,7 @@ Combines keyword search, semantic search, and graph traversal
 
 import re
 import time
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import Callable, List, Dict, Any, Optional, Set, Tuple
 from collections import defaultdict, Counter
 import heapq
 
@@ -155,11 +155,12 @@ class GraphRAGRetriever:
         expand_graph: bool = True,
         max_hops: int = 1,
         return_chunks: bool = True,
-        strategy: str = "hybrid"
+        strategy: str = "hybrid",
+        node_filter: Optional[Callable[[Any], bool]] = None
     ) -> RAGResult:
         """
         Main retrieval method combining multiple strategies
-        
+
         Args:
             query: Search query
             top_k: Number of results to return
@@ -167,21 +168,28 @@ class GraphRAGRetriever:
             max_hops: Maximum hops for graph expansion
             return_chunks: Return content chunks instead of just documents
             strategy: "keyword", "graph", or "hybrid"
-        
+            node_filter: Optional predicate ``(NodeMetadata) -> bool`` that scopes results
+                to a subset of the graph (e.g. one agency or one site section). The filter is
+                applied to the ranked candidates *before* top_k truncation, and every passing
+                node is guaranteed to be a candidate — so a small section whose pages don't
+                all match the query keywords is still fully reachable. Used by personas.
+
         Returns:
             RAGResult with ranked results
         """
         start_time = time.time()
-        
-        # Step 1: Keyword search to find seed documents
-        keyword_results = self.keyword_search(query, top_k=top_k * 2)
+
+        # Step 1: Keyword search to find seed documents. With a node_filter (scope) active,
+        # widen the candidate pool so a small scoped section is well represented.
+        kw_pool = max(top_k * 2, 200) if node_filter else top_k * 2
+        keyword_results = self.keyword_search(query, top_k=kw_pool)
         seed_nodes = [node_id for node_id, score in keyword_results]
-        
+
+        expanded: Dict[str, Dict[str, Any]] = {}
         if strategy == "keyword":
-            # Just use keyword results
-            final_nodes = seed_nodes[:top_k]
+            ranked = seed_nodes
             search_strategy = "keyword_only"
-        
+
         elif strategy == "graph" and expand_graph:
             # Just use graph expansion (no initial keyword search)
             # Start from index pages
@@ -189,22 +197,22 @@ class GraphRAGRetriever:
                 node_id for node_id, node in self.graph.nodes.items()
                 if node.node_type == NodeType.INDEX_PAGE
             ][:5]
-            
+
             expanded = self.expand_via_graph(
                 seed_nodes=index_nodes,
                 max_hops=max_hops,
                 max_neighbors=10,
                 edge_types=[EdgeType.HYPERLINK, EdgeType.TOPIC_RELATED]
             )
-            
+
             # Rank by graph score
-            final_nodes = sorted(
+            ranked = sorted(
                 expanded.keys(),
                 key=lambda x: expanded[x]['score'],
                 reverse=True
-            )[:top_k]
+            )
             search_strategy = "graph_only"
-        
+
         else:  # hybrid (default)
             if expand_graph and seed_nodes:
                 # Expand via graph from keyword matches
@@ -214,32 +222,51 @@ class GraphRAGRetriever:
                     max_neighbors=5,
                     edge_types=[EdgeType.HYPERLINK, EdgeType.SEMANTIC_SIMILAR, EdgeType.TOPIC_RELATED]
                 )
-                
+
                 # Combine keyword and graph scores
                 combined_scores = {}
-                
+
                 # Add keyword scores
                 for node_id, kw_score in keyword_results:
                     combined_scores[node_id] = kw_score * 0.7  # Weight keyword matches
-                
+
                 # Add/boost graph scores
                 for node_id, info in expanded.items():
                     if node_id in combined_scores:
                         combined_scores[node_id] += info['score'] * 0.3
                     else:
                         combined_scores[node_id] = info['score'] * 0.3
-                
+
                 # Rank by combined score
-                final_nodes = sorted(
+                ranked = sorted(
                     combined_scores.keys(),
                     key=lambda x: combined_scores[x],
                     reverse=True
-                )[:top_k]
+                )
                 search_strategy = "hybrid_keyword_graph"
             else:
-                final_nodes = seed_nodes[:top_k]
+                ranked = seed_nodes
                 search_strategy = "keyword_only"
-        
+
+        # Scope (optional): keep only passing nodes, and make sure EVERY passing node is a
+        # candidate — a small section's pages may not all surface via query keywords. Query
+        # relevance still leads; remaining scoped pages follow by graph importance (pagerank).
+        if node_filter:
+            ranked = [
+                n for n in ranked
+                if n in self.graph.nodes and node_filter(self.graph.nodes[n])
+            ]
+            present = set(ranked)
+            extras = [
+                nid for nid, nd in self.graph.nodes.items()
+                if nid not in present and node_filter(nd)
+            ]
+            extras.sort(key=lambda nid: self.graph.nodes[nid].pagerank_score, reverse=True)
+            ranked += extras
+            search_strategy += "+scoped"
+
+        final_nodes = ranked[:top_k]
+
         # Prepare results
         results = []
         for node_id in final_nodes:
@@ -277,7 +304,7 @@ class GraphRAGRetriever:
             total_found=len(results),
             search_strategy=search_strategy,
             execution_time_ms=execution_time_ms,
-            expanded_nodes=list(expanded.keys()) if expand_graph and 'expanded' in locals() else []
+            expanded_nodes=list(expanded.keys())
         )
     
     def get_document_context(self, node_id: str, context_hops: int = 1) -> Dict[str, Any]:

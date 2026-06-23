@@ -34,3 +34,15 @@ def test_perplexity_defaults_to_sonar_pro_and_builds_openai_payload():
 def test_anthropic_model_is_not_used_for_perplexity():
     # Even though .env may set CHAT_MODEL=claude-haiku-4-5, Perplexity uses its own default.
     assert get_provider("perplexity").model == "sonar-pro"
+
+
+def test_perplexity_payload_threads_history_between_system_and_user():
+    p = get_provider("perplexity")
+    history = [
+        {"role": "user", "content": "prior question"},
+        {"role": "assistant", "content": "prior answer"},
+    ]
+    msgs = p.build_payload("SYS", "NOW", history)["messages"]
+    assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
+    assert msgs[0]["content"] == "SYS"
+    assert msgs[-1]["content"] == "NOW"

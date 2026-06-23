@@ -18,7 +18,8 @@ from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
 
-from src.chat_api.retrieval import get_retriever
+from src.chat_api.personas import PersonaNotFound, get_persona
+from src.chat_api.retrieval import build_node_filter, get_retriever
 
 SNIPPET_CHARS = 500
 
@@ -37,12 +38,19 @@ def _clean_result(doc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _search(query: str, top_k: int = 6, agency: Optional[str] = None) -> Dict[str, Any]:
+def _search(
+    query: str,
+    top_k: int = 6,
+    agency: Optional[str] = None,
+    url_contains: Optional[str] = None,
+) -> Dict[str, Any]:
     retriever = get_retriever()
-    r = retriever.retrieve(query, top_k=top_k * 3 if agency else top_k, return_chunks=True)
+    node_filter = build_node_filter(agency, url_contains)
+    r = retriever.retrieve(query, top_k=top_k, return_chunks=True, node_filter=node_filter)
     results = r.results
-    if agency:
-        results = [d for d in results if d.get("agency") == agency] or r.results
+    if not results and node_filter:
+        r = retriever.retrieve(query, top_k=top_k, return_chunks=True)
+        results = r.results
     results = results[:top_k]
     return {
         "query": r.query,
@@ -97,6 +105,43 @@ def search_by_agency(agency: str, query: str = "", top_k: int = 10) -> Dict[str,
 def get_document_context(node_id: str, context_hops: int = 1) -> Dict[str, Any]:
     """Return the graph neighborhood of a document (related-by-link/topic/agency)."""
     return _context(node_id, context_hops)
+
+
+# ---- persona surfaces (scoped retrieval + guidance; the host client runs the loop) ----
+# A persona narrows retrieval to a section of the graph and ships its goals/stages as
+# guidance. We deliberately do NOT synthesize here: per the project contract, MCP tools
+# never call an LLM — the host client (Claude Desktop) is the conversation loop and writes
+# the guided, cited answer from these grounded passages.
+def _register_persona_tool(persona_id: str) -> None:
+    try:
+        persona = get_persona(persona_id)
+    except (PersonaNotFound, ValueError):
+        return  # missing/malformed persona shouldn't break the core tools
+
+    scope = persona.scope
+    guidance = {
+        "mission": persona.audience,
+        "goals": persona.goals,
+        "stages": persona.stage_ids,
+        "how_to_use": (
+            "Run a staged, guided conversation toward the user's plan: move through the stages "
+            "in order, ask one thing at a time, and ground every claim in the returned results "
+            "with an inline citation to its source_url. Never invent programs, offices, or links."
+        ),
+    }
+    meta = persona.mcp
+
+    @mcp.tool(name=meta.get("tool_name", persona.id.replace("-", "_")),
+              description=meta.get("tool_description", persona.name))
+    def _persona_search(query: str, top_k: int = 6) -> Dict[str, Any]:
+        out = _search(query, top_k, agency=scope.get("agency"),
+                      url_contains=scope.get("url_contains"))
+        out["persona"] = persona.id
+        out["guidance"] = guidance
+        return out
+
+
+_register_persona_tool("community-planning-guide")
 
 
 if __name__ == "__main__":

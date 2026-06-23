@@ -7,12 +7,36 @@ import os
 import urllib.request
 from functools import lru_cache
 from pathlib import Path
+from typing import Callable, Optional
 
 from src.network.persistence import GraphPersistence
 from src.network.rag_retriever import GraphRAGRetriever
 
 GRAPH_DIR = "src/network/exports"
 GRAPH_FILE = "montana_knowledge.pkl"
+
+
+def build_node_filter(
+    agency: Optional[str] = None, url_contains: Optional[str] = None
+) -> Optional[Callable[[object], bool]]:
+    """A retriever ``node_filter`` predicate for scoping to an agency and/or a URL section.
+
+    Returns ``None`` when no scope is requested, so the retriever ranks the whole graph.
+    Used by both surfaces (chat API personas, MCP persona tool) so scoping is defined once.
+    """
+    agency = (agency or "").strip() or None
+    uc = (url_contains or "").strip().lower() or None
+    if not agency and not uc:
+        return None
+
+    def predicate(node: object) -> bool:
+        if agency and (getattr(node, "agency", "") or "") != agency:
+            return False
+        if uc and uc not in (getattr(node, "source_url", "") or "").lower():
+            return False
+        return True
+
+    return predicate
 
 
 def _ensure_graph_file() -> None:

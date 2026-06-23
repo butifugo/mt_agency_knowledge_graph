@@ -1,0 +1,87 @@
+# Planning gold-question set for the Community Planning Guide persona (owned by Círdan).
+# AC-4 gate (docs/guided-personas.spec.md Part 6). These exercise BOTH branches of the
+# single v1 persona (community-planning-guide). The 4 v2 personas are NOT evaluated here.
+#
+# Each entry:
+#   id            — stable label
+#   branch        — build_plan | evaluate_community (which arm it should drive into)
+#   turns         — ordered user messages for a 1-2 turn conversation (state carries forward)
+#   expect_terms  — vocabulary a relevant answer should surface (topic responsiveness)
+#   expect_url    — a CPP doc that SHOULD appear among cited/used sources (citation accuracy)
+#   notes         — what a good guided answer looks like for this question
+#
+# Every citation must resolve to a Community-Planning-Platform URL (AC-2). Funding programs,
+# if named, must be CPP-named only: CDBG, Montana Main Street, Ready Communities, SLIPA (§2.5).
+persona: community-planning-guide
+
+questions:
+  - id: growth_policy_redlodge
+    branch: build_plan
+    turns:
+      - "I'm a planner in Red Lodge starting a growth policy — where do I begin?"
+      - "We're just getting started — what sections does a growth policy need?"
+    expect_terms: [growth policy, community profile, land use]
+    expect_url: Growth-Policies
+    notes: Should orient->scope (capture Red Lodge + growth_policy) then ground in the
+      Growth Policies guidance and point to Community Profiles. Should ask one thing at a time.
+
+  - id: cip_question
+    branch: build_plan
+    turns:
+      - "Our town needs a capital improvement plan. What goes into a CIP?"
+    expect_terms: [capital improvement, CIP, infrastructure]
+    expect_url: Capital-Improvement-Plans
+    notes: Should recognize CIP plan type and ground in the CIP guidance page.
+
+  - id: ceds_question
+    branch: build_plan
+    turns:
+      - "How do I put together a CEDS for our economic development district?"
+    expect_terms: [comprehensive economic development, CEDS, economic]
+    expect_url: Comprehensive-Economic-Development-Strategies
+    notes: Should ground in the CEDS page; CEDS is a federal EDA requirement surfaced by CPP.
+
+  - id: zoning_subdivision
+    branch: build_plan
+    turns:
+      - "What's the difference between zoning ordinances and subdivision regulations, and which do I need first?"
+    expect_terms: [zoning, subdivision]
+    expect_url: Zoning-Ordinances
+    notes: Should ground in Zoning and/or Subdivision Regulations pages, both in scope.
+
+  - id: funding_growth_policy
+    branch: build_plan
+    turns:
+      - "I'm a planner in Red Lodge working on a growth policy."
+      - "What funding could help pay for this planning work?"
+    expect_terms: [grant, funding, CDBG, Main Street, Ready Communities]
+    expect_url: Community-Planning-Platform
+    notes: The fund_act stage. Must name ONLY CPP-grounded programs (CDBG, Montana Main
+      Street, Ready Communities, SLIPA). Inventing a program/deadline/office is a FAIL.
+
+  - id: evaluate_facility
+    branch: evaluate_community
+    turns:
+      - "Our company is evaluating a Montana town for a manufacturing facility — what data should I look at?"
+    expect_terms: [community profile, data, infrastructure]
+    expect_url: Community-Profiles
+    notes: evaluate_community branch. Should point to Community Profiles data and ask which
+      community. Should NOT dump a build-a-plan answer.
+
+  - id: evaluate_buildings
+    branch: evaluate_community
+    turns:
+      - "We need an existing building to lease for a new operation in Montana. Where do I look?"
+    expect_terms: [building, lease, rent, available]
+    expect_url: Buildings-For-Lease-Or-Rent
+    notes: Should surface the Buildings for Lease or Rent inventory; evaluate_community branch.
+
+  - id: profile_data_lookup
+    branch: evaluate_community
+    turns:
+      - "What community profile data exists for my area?"
+      - "My area is Bozeman."
+    expect_terms: [community profile, profile, data]
+    expect_url: Community-Profiles
+    notes: "Should ask for the community (slot), then ground in Community Profiles. Guided
+      behavior is asking the missing slot rather than dumping a generic answer."

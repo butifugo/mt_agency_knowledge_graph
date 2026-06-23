@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Business Location Advisors — Montana Department of Commerce (demo)</title>
+  <style>
+    /* MAGPIE design system — warm duotone: teal primary + coral/amber warmth on warm-white. */
+    :root {
+      --bg:#fefcfa; --surface:#ffffff;
+      --ink:#1a1a2e; --ink-2:#5a5a6e; --ink-3:#8a8a9a;
+      --teal:#0ea5a5; --teal-d:#0b8585; --teal-tint:#e9faf8;
+      --coral:#ff6b5e; --coral-d:#f0463a; --amber:#f59e0b;
+      --line:#ece8e3;
+      --radius:20px; --radius-sm:12px;
+      --shadow:0 1px 2px rgba(26,26,46,.04), 0 8px 24px rgba(26,26,46,.06);
+      --shadow-lg:0 4px 12px rgba(26,26,46,.06), 0 20px 48px rgba(26,26,46,.10);
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; min-height:100%;
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      color:var(--ink); background:var(--bg); font-size:17px; line-height:1.6;
+      -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+
+    /* ---- sticky translucent top bar ---- */
+    .topbar { position:sticky; top:0; z-index:50; display:flex; align-items:center;
+      justify-content:space-between; gap:16px; padding:11px 24px;
+      background:rgba(254,252,250,.72);
+      backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+      border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit; }
+    .brand img { width:32px; height:32px; flex:none; }
+    .brand .nm { font-size:18px; font-weight:700; letter-spacing:.02em; }
+    .topbar .ctx { font-size:13px; color:var(--ink-3); font-weight:500; }
+    @media (max-width:560px){ .topbar .ctx{ display:none; } }
+
+    main { max-width:1180px; margin:0 auto; padding:0 24px 64px; }
+
+    @keyframes rise { from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+
+    /* ============ PRE state: the picker / hero ============ */
+    .picker { animation:rise .4s cubic-bezier(.2,.7,.2,1) both; max-width:1120px; margin:0 auto; }
+    body.live .picker { display:none; }
+
+    .hero { position:relative; max-width:760px; margin:0 auto; padding:64px 0 8px;
+      text-align:center; overflow:visible; }
+    .hero::before { content:""; position:absolute; inset:-40px auto auto 50%; transform:translateX(-50%);
+      width:620px; height:420px; z-index:0; pointer-events:none; filter:blur(10px);
+      background:radial-gradient(closest-side, rgba(14,165,165,.18), transparent 70%),
+                 radial-gradient(closest-side, rgba(255,107,94,.16), transparent 70%);
+      background-position:28% 30%, 76% 48%; background-repeat:no-repeat; }
+    .hero > * { position:relative; z-index:1; }
+    .eyebrow { color:var(--teal-d); font-weight:600; font-size:13px; letter-spacing:.06em;
+      text-transform:uppercase; margin:0 0 14px; }
+    .eyebrow .dot { color:var(--coral); }
+    .hero h1 { font-size:clamp(34px,5.4vw,54px); line-height:1.04; letter-spacing:-.03em;
+      font-weight:800; margin:0 0 16px; }
+    .hero h1 .grad { background:linear-gradient(115deg,var(--teal) 10%,var(--coral) 90%);
+      -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .hero p.sub { font-size:clamp(16px,2vw,19px); line-height:1.5; color:var(--ink-2);
+      max-width:560px; margin:0 auto 30px; }
+
+    .ask { display:flex; align-items:center; gap:8px; max-width:600px; margin:0 auto;
+      background:var(--surface); border:1px solid var(--line); border-radius:999px;
+      padding:7px 7px 7px 20px; box-shadow:var(--shadow-lg);
+      transition:border-color .15s, box-shadow .2s; }
+    .ask:focus-within { border-color:var(--teal); box-shadow:0 0 0 4px rgba(14,165,165,.14), var(--shadow-lg); }
+    .ask input { flex:1; border:none; outline:none; background:none; font:inherit; font-size:16px;
+      color:var(--ink); min-width:0; }
+    .ask input::placeholder { color:var(--ink-3); }
+    .ask .go { flex:none; border:none; cursor:pointer; width:46px; height:46px; border-radius:50%;
+      background:linear-gradient(135deg,var(--coral),#ff8f5e); color:#fff; font-size:20px; line-height:1;
+      box-shadow:0 8px 20px rgba(255,107,94,.34); transition:transform .15s, box-shadow .2s; }
+    .ask .go:hover { transform:translateY(-2px); box-shadow:0 12px 26px rgba(255,107,94,.46); }
+    .ask .go:focus-visible { outline:3px solid var(--teal); outline-offset:2px; }
+
+    .or { display:flex; align-items:center; gap:14px; max-width:520px; margin:30px auto 22px;
+      color:var(--ink-3); font-size:13px; letter-spacing:.02em; }
+    .or::before, .or::after { content:""; flex:1; height:1px; background:var(--line); }
+
+    .advisors { display:grid; grid-template-columns:1fr 1fr; gap:14px; text-align:left;
+      max-width:760px; margin:0 auto; }
+    @media (max-width:680px){ .advisors{ grid-template-columns:1fr; } }
+    .advisor { display:flex; gap:14px; align-items:flex-start; width:100%; text-align:left; cursor:pointer;
+      background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px 18px;
+      box-shadow:var(--shadow); transition:border-color .15s, box-shadow .2s, transform .12s; }
+    .advisor:hover { border-color:#cdeeea; box-shadow:var(--shadow-lg); transform:translateY(-3px); }
+    .advisor:active { transform:translateY(-1px); }
+    .advisor:focus-visible { outline:3px solid var(--teal); outline-offset:2px; }
+    .advisor .ava { flex:0 0 48px; height:48px; border-radius:14px; display:grid; place-items:center;
+      font-size:24px; background:var(--teal-tint); border:1px solid #d3f3ef; }
+    .advisor .body { min-width:0; }
+    .advisor .nm { font-size:15.5px; font-weight:700; letter-spacing:-.01em; margin:1px 0 3px; }
+    .advisor .sp { font-size:13.5px; color:var(--ink-2); margin:0; line-height:1.45; }
+    .advisor .go { margin-left:auto; align-self:center; color:var(--teal); font-size:19px; flex:0 0 auto;
+      opacity:0; transform:translateX(-4px); transition:opacity .15s, transform .15s; }
+    .advisor:hover .go { opacity:1; transform:none; }
+
+    .generalist { margin:16px auto 0; max-width:760px; text-align:center; font-size:14.5px; color:var(--ink-2); }
+    .generalist button { background:none; border:none; color:var(--teal-d); font:inherit; font-weight:650;
+      cursor:pointer; padding:0; text-decoration:underline; text-underline-offset:2px; }
+    .generalist button:hover { color:var(--coral-d); }
+
+    /* ============ LIVE state: the workspace (chat + living plan) ============ */
+    .conversation { display:none; }
+    body.live .conversation { display:block; animation:rise .4s cubic-bezier(.2,.7,.2,1) both; }
+    .conv-bar { display:flex; align-items:center; gap:12px; max-width:1180px; margin:0 auto;
+      padding:22px 2px 14px; }
+    .conv-back { display:inline-flex; align-items:center; gap:6px; background:var(--surface);
+      border:1px solid var(--line); border-radius:999px; padding:8px 15px; font:inherit; font-size:14px;
+      font-weight:600; color:var(--ink); cursor:pointer; box-shadow:var(--shadow);
+      transition:border-color .15s, color .15s, transform .12s; }
+    .conv-back:hover { border-color:var(--teal); color:var(--teal-d); transform:translateY(-1px); }
+    .conv-back:focus-visible { outline:3px solid var(--teal); outline-offset:2px; }
+    .conv-active { display:inline-flex; align-items:center; gap:8px; font-size:15px; font-weight:650; color:var(--ink); }
+    .conv-active .ava { width:30px; height:30px; border-radius:9px; display:grid; place-items:center;
+      font-size:16px; background:var(--teal-tint); border:1px solid #d3f3ef; }
+
+    .workspace { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,430px); gap:22px;
+      align-items:start; max-width:1180px; margin:0 auto; }
+    @media (max-width:980px){ .workspace{ grid-template-columns:1fr; } }
+
+    .panel-frame { background:var(--surface); border:1px solid var(--line);
+      border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-lg);
+      height:min(720px, calc(100vh - 184px)); }
+    #advisor-chat { width:100%; height:100%; }
+    /* the side plan supersedes the in-bubble artifact here — hide that duplicate */
+    #advisor-chat .mtchat-artifact { display:none; }
+
+    /* ---- the Working Plan document ---- */
+    .plan { position:sticky; top:88px; background:var(--surface); border:1px solid var(--line);
+      border-radius:var(--radius); box-shadow:var(--shadow-lg); overflow:hidden;
+      display:flex; flex-direction:column; height:min(720px, calc(100vh - 184px)); }
+    @media (max-width:980px){ .plan{ position:static; height:auto; max-height:none; } }
+    .plan-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      padding:18px 20px 14px; border-bottom:1px solid var(--line);
+      background:linear-gradient(135deg,var(--teal-tint),#fff); }
+    .plan-head h3 { margin:0; font-size:12px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.07em; color:var(--teal-d); }
+    .plan-head .plan-title { margin:3px 0 0; font-size:18px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+    .plan-actions { display:flex; gap:7px; flex:none; }
+    .plan-actions button { border:1px solid var(--line); background:var(--surface); color:var(--ink-2);
+      font:inherit; font-size:12px; font-weight:600; border-radius:999px; padding:6px 12px; cursor:pointer;
+      transition:border-color .15s, color .15s, background .15s; }
+    .plan-actions button:hover { border-color:var(--teal); color:var(--teal-d); }
+    .plan-actions button:disabled { opacity:.45; cursor:default; }
+    .plan-actions button.ok { border-color:#1f8a4c; color:#1f8a4c; }
+
+    .plan-body { flex:1; overflow-y:auto; padding:16px 20px 22px; }
+
+    .plan-ctx { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px; }
+    .plan-ctx .pill { background:var(--teal-tint); border:1px solid #cdeeea; color:var(--teal-d);
+      border-radius:999px; padding:3px 11px; font-size:12px; font-weight:500; }
+    .plan-ctx .pill b { font-weight:700; }
+
+    /* stepped progress rail */
+    .progress { list-style:none; display:flex; flex-wrap:wrap; gap:4px 0; margin:0 0 18px; padding:0; }
+    .progress li { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-3);
+      flex:1 1 auto; min-width:0; }
+    .progress .ico { flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
+      font-size:11px; font-weight:700; background:#f1ede7; color:var(--ink-3); border:1px solid var(--line);
+      transition:background .25s, color .25s, border-color .25s; }
+    .progress .lbl { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-transform:capitalize; }
+    .progress li:not(:last-child)::after { content:""; flex:1; height:2px; min-width:8px; margin:0 6px;
+      background:var(--line); border-radius:2px; transition:background .25s; }
+    .progress li.done .ico { background:var(--teal); color:#fff; border-color:var(--teal); }
+    .progress li.done::after { background:var(--teal); }
+    .progress li.active .ico { background:#fff; color:var(--teal-d); border-color:var(--teal);
+      box-shadow:0 0 0 3px rgba(14,165,165,.18); }
+    .progress li.active .lbl { color:var(--ink); font-weight:700; }
+
+    /* plan sections */
+    .sections { display:flex; flex-direction:column; gap:2px; }
+    .field { padding:11px 12px; border-radius:12px; border:1px solid transparent; }
+    .field + .field { border-top:1px solid var(--line); border-radius:0; }
+    .field .k { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+      color:var(--ink-3); margin:0 0 3px; display:flex; align-items:center; gap:6px; }
+    .field .v { font-size:14.5px; color:var(--ink); line-height:1.5; margin:0; white-space:pre-wrap; }
+    .field.pending .v { color:var(--ink-3); font-style:italic; }
+    .field .dot { width:7px; height:7px; border-radius:50%; flex:none; background:var(--line); }
+    .field.filled .dot { background:var(--teal); }
+    .field .v a { color:var(--teal-d); }
+    @keyframes fieldpulse { 0%{ background:rgba(14,165,165,.16); border-color:rgba(14,165,165,.4); }
+      100%{ background:transparent; border-color:transparent; } }
+    .field.is-new { animation:fieldpulse 1.6s ease-out; border-radius:12px; }
+
+    /* action items — the work plan's checkable to-do list */
+    .ai-list { list-style:none; margin:5px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+    .ai { display:flex; gap:9px; align-items:flex-start; }
+    .ai-check { flex:0 0 18px; width:18px; height:18px; margin-top:1px; border-radius:6px;
+      border:1.5px solid #cdd6d4; background:var(--surface); color:#fff; font-size:11px; line-height:1;
+      display:grid; place-items:center; cursor:pointer; padding:0;
+      transition:background .15s, border-color .15s; }
+    .ai-check:hover { border-color:var(--teal); }
+    .ai-check:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+    .ai.ai-done .ai-check { background:var(--teal); border-color:var(--teal); }
+    .ai-body { min-width:0; display:flex; flex-direction:column; gap:1px; }
+    .ai-task { font-size:14px; color:var(--ink); line-height:1.45; }
+    .ai.ai-done .ai-task { color:var(--ink-3); text-decoration:line-through; }
+    .ai-meta { font-size:11.5px; color:var(--ink-3); }
+    .ai-meta a { color:var(--teal-d); }
+
+    .plan-empty { color:var(--ink-3); font-size:14px; line-height:1.55; padding:8px 2px; }
+    .plan-stamp { margin:16px 2px 0; font-size:11.5px; color:var(--ink-3); }
+
+    .disc { margin:34px auto 0; max-width:760px; font-size:12.5px; color:var(--ink-3);
+      line-height:1.6; text-align:center; }
+    .disc a { color:var(--teal-d); }
+  </style>
+</head>
+<body class="pre">
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <img src="magpie.svg" alt="" />
+      <span class="nm">MAGPIE</span>
+    </a>
+    <span class="ctx">Business Location Advisors · Dept. of Commerce</span>
+  </header>
+
+  <main>
+    <!-- PRE state: conversation-first hero — ask up front, or pick a specialist. -->
+    <section class="picker" id="picker" aria-label="Start a conversation">
+      <div class="hero">
+        <p class="eyebrow">Montana Dept. of Commerce <span class="dot">•</span> Business Attraction &amp; Site Selection</p>
+        <h1>Bring your business to <span class="grad">Montana</span></h1>
+        <p class="sub">
+          Scouting Montana for your next facility — or showcasing your community to employers?
+          Pick a specialist and a location plan takes shape on the side as you go, grounded in
+          cited Montana Department of Commerce sources.
+        </p>
+
+        <form class="ask" id="ask-form" role="search">
+          <input id="ask-input" type="text" autocomplete="off"
+                 placeholder="Ask about siting or growing a business in Montana…"
+                 aria-label="Ask the business location advisors a question" />
+          <button class="go" type="submit" aria-label="Start the conversation">→</button>
+        </form>
+      </div>
+
+      <div class="or">or choose a specialist</div>
+
+      <div class="advisors" role="list">
+        <button class="advisor" role="listitem" data-persona="site-selection-advisor">
+          <span class="ava" aria-hidden="true">📍</span>
+          <span class="body">
+            <span class="nm">Site Selection &amp; Location</span>
+            <span class="sp">Size up a Montana community for your project — profile data, workforce, and readiness.</span>
+          </span>
+          <span class="go" aria-hidden="true">→</span>
+        </button>
+
+        <button class="advisor" role="listitem" data-persona="funding-grants-advisor">
+          <span class="ava" aria-hidden="true">💰</span>
+          <span class="body">
+            <span class="nm">Incentives &amp; Financing</span>
+            <span class="sp">Programs that lower the cost of locating or expanding — and grants to ready a site.</span>
+          </span>
+          <span class="go" aria-hidden="true">→</span>
+        </button>
+
+        <button class="advisor" role="listitem" data-persona="infrastructure-cip-advisor">
+          <span class="ava" aria-hidden="true">🏗️</span>
+          <span class="body">
+            <span class="nm">Site &amp; Infrastructure Readiness</span>
+            <span class="sp">Water, wastewater, roads, and utilities — is the site ready for your facility?</span>
+          </span>
+          <span class="go" aria-hidden="true">→</span>
+        </button>
+
+        <button class="advisor" role="listitem" data-persona="growth-policy-advisor">
+          <span class="ava" aria-hidden="true">📐</span>
+          <span class="body">
+            <span class="nm">Permitting &amp; Land Use</span>
+            <span class="sp">Zoning, development standards, and the local approvals a project needs.</span>
+          </span>
+          <span class="go" aria-hidden="true">→</span>
+        </button>
+      </div>
+
+      <p class="generalist">
+        Not sure where to start?
+        <button data-persona="community-planning-guide" id="start-guide">Start with the Business Location Guide</button>
+        — whether you're a company scouting Montana or a community courting employers, it finds your path.
+      </p>
+    </section>
+
+    <!-- LIVE state: a workspace — conversation on the left, a living plan on the right. -->
+    <section class="conversation" id="conversation" aria-label="Plan workspace">
+      <div class="conv-bar">
+        <button class="conv-back" id="conv-back" type="button">← Advisors</button>
+        <span class="conv-active" id="conv-active" aria-live="polite"></span>
+      </div>
+
+      <div class="workspace">
+        <div class="panel-frame">
+          <div id="advisor-chat"></div>
+        </div>
+
+        <aside class="plan" id="plan" aria-label="Working plan document">
+          <div class="plan-head">
+            <div>
+              <h3>Working Plan</h3>
+              <p class="plan-title" id="plan-title">Your plan</p>
+            </div>
+            <div class="plan-actions">
+              <button id="plan-copy" type="button" disabled>Copy</button>
+              <button id="plan-dl" type="button" disabled>Download</button>
+            </div>
+          </div>
+          <div class="plan-body">
+            <div class="plan-ctx" id="plan-ctx" hidden></div>
+            <ol class="progress" id="plan-progress"></ol>
+            <div class="sections" id="plan-sections">
+              <p class="plan-empty">Your plan will build here as you and your advisor work through it.</p>
+            </div>
+            <p class="plan-stamp" id="plan-stamp" hidden></p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <p class="disc">
+      This is an unofficial example tool. The advisors are AI guides — not Department of
+      Commerce staff — and answers are AI-generated from public
+      <a href="https://commerce.mt.gov/Infrastructure-Planning/Community-Planning-Platform/" target="_blank" rel="noopener">commerce.mt.gov</a>
+      Community Planning Platform pages (community profiles, site readiness, land use, and
+      funding programs). Verify incentives, eligibility, and contacts on the source site before
+      acting on them.
+    </p>
+  </main>
+
+  <script src="widget.js" data-api="http://localhost:8001" data-mount="#advisor-chat"></script>
+  <script>
+    (function () {
+      var ADVISORS = {
+        "site-selection-advisor":     { emoji:"📍", name:"Site Selection & Location" },
+        "funding-grants-advisor":     { emoji:"💰", name:"Incentives & Financing" },
+        "infrastructure-cip-advisor": { emoji:"🏗️", name:"Site & Infrastructure Readiness" },
+        "growth-policy-advisor":      { emoji:"📐", name:"Permitting & Land Use" },
+        "community-planning-guide":   { emoji:"🧭", name:"Business Location Guide" }
+      };
+      var GUIDE = "community-planning-guide";
+
+      // Same API the widget talks to (read off its script tag).
+      var wscript = document.querySelector('script[src*="widget.js"]');
+      var API = ((wscript && wscript.getAttribute("data-api")) || "http://localhost:8001").replace(/\/$/, "");
+
+      var body = document.body;
+      var askForm = document.getElementById("ask-form");
+      var askInput = document.getElementById("ask-input");
+      var convActive = document.getElementById("conv-active");
+      var cards = Array.prototype.slice.call(document.querySelectorAll("[data-persona]"));
+
+      // ---- the Working Plan document ----
+      var elTitle = document.getElementById("plan-title");
+      var elCtx = document.getElementById("plan-ctx");
+      var elProg = document.getElementById("plan-progress");
+      var elSecs = document.getElementById("plan-sections");
+      var elStamp = document.getElementById("plan-stamp");
+      var btnCopy = document.getElementById("plan-copy");
+      var btnDl = document.getElementById("plan-dl");
+
+      var scaffold = null;     // {name, stages:[{id,goal}], artifacts:{branch:[fields]}}
+      var planState = null;    // last conversation state {artifact, branch, stage, slots, turn}
+      var scaffoldFor = null;  // persona id the scaffold belongs to
+      var prevArtifact = {};   // to highlight fields that changed this turn
+      var planChecked = {};    // action-item task text -> true (checked off); session-only
+
+      function titleCase(k) {
+        return String(k).replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      }
+      function esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+      // Linkify bare/markdown links in a field value (sources field, etc.).
+      function linkify(s) {
+        return esc(s)
+          .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+          .replace(/(^|[^"(>])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+      }
+      // Normalize one action item (object or bare string) to {task, owner, when, cite}.
+      function aiParts(it) {
+        if (it && typeof it === "object") {
+          return {
+            task:  it.task  || it.step   || it.action    || "",
+            owner: it.owner || it.who    || "",
+            when:  it.when  || it.timing || it.timeframe || "",
+            cite:  it.cite  || it.source || it.citation  || ""
+          };
+        }
+        return { task: String(it == null ? "" : it), owner: "", when: "", cite: "" };
+      }
+      // The action-items checklist (one <li> per step, checkbox reflects planChecked).
+      function actionItemRows(items) {
+        return items.map(function (it) {
+          var p = aiParts(it);
+          if (!p.task) return "";
+          var done = !!planChecked[p.task];
+          var meta = [p.owner, p.when].filter(Boolean).map(esc).join(" · ");
+          if (p.cite) meta += (meta ? " · " : "") + linkify(String(p.cite));
+          return '<li class="ai' + (done ? " ai-done" : "") + '">' +
+                   '<button class="ai-check" type="button" role="checkbox" aria-checked="' +
+                     (done ? "true" : "false") + '" data-task="' + esc(p.task) + '">' +
+                     (done ? "✓" : "") + '</button>' +
+                   '<span class="ai-body"><span class="ai-task">' + linkify(String(p.task)) + "</span>" +
+                   (meta ? '<span class="ai-meta">' + meta + "</span>" : "") +
+                 "</span></li>";
+        }).join("");
+      }
+
+      function fieldsForBranch() {
+        if (!scaffold || !scaffold.artifacts) return [];
+        var arts = scaffold.artifacts;
+        var branch = (planState && planState.branch) || null;
+        if (branch && arts[branch]) return arts[branch];
+        var keys = Object.keys(arts);
+        return keys.length === 1 ? arts[keys[0]] : (keys.length ? arts[keys[0]] : []);
+      }
+
+      function fetchScaffold(personaId) {
+        if (scaffoldFor === personaId && scaffold) { renderPlan(); return; }
+        scaffoldFor = personaId;
+        elTitle.textContent = (ADVISORS[personaId] || {}).name || "Your plan";
+        fetch(API + "/personas/" + encodeURIComponent(personaId))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .catch(function () { return null; })
+          .then(function (meta) {
+            if (scaffoldFor !== personaId) return; // a newer advisor was chosen
+            scaffold = meta || { name: personaId, stages: [], artifacts: {} };
+            if (meta && meta.name) elTitle.textContent = meta.name;
+            renderPlan();
+          });
+      }
+
+      function renderProgress() {
+        var stages = (scaffold && scaffold.stages) || [];
+        if (!stages.length) { elProg.innerHTML = ""; return; }
+        var cur = (planState && planState.stage) || stages[0].id;
+        var ci = stages.map(function (s) { return s.id; }).indexOf(cur);
+        if (ci < 0) ci = 0;
+        elProg.innerHTML = stages.map(function (s, i) {
+          var cls = i < ci ? "done" : (i === ci ? "active" : "");
+          var ico = i < ci ? "✓" : String(i + 1);
+          return '<li class="' + cls + '"><span class="ico">' + ico + "</span>" +
+                 '<span class="lbl">' + esc(titleCase(s.id)) + "</span></li>";
+        }).join("");
+      }
+
+      function renderCtx() {
+        var slots = (planState && planState.slots) || {};
+        var keys = Object.keys(slots).filter(function (k) {
+          var v = slots[k]; return v != null && v !== "" && k !== "branch";
+        });
+        if (!keys.length) { elCtx.hidden = true; elCtx.innerHTML = ""; return; }
+        elCtx.hidden = false;
+        elCtx.innerHTML = keys.map(function (k) {
+          return '<span class="pill"><b>' + esc(titleCase(k)) + ":</b> " + esc(String(slots[k])) + "</span>";
+        }).join("");
+      }
+
+      function renderSections() {
+        var fields = fieldsForBranch();
+        var artifact = (planState && planState.artifact) || {};
+        if (!fields.length) {
+          // No scaffold yet (e.g. branch undecided) — show whatever's filled so far.
+          fields = Object.keys(artifact);
+        }
+        if (!fields.length) {
+          elSecs.innerHTML = '<p class="plan-empty">Your plan will build here as you and your advisor work through it.</p>';
+          return;
+        }
+        var filledCount = 0;
+        elSecs.innerHTML = fields.map(function (f) {
+          var v = artifact[f];
+          var has = v != null && v !== "" && !(Array.isArray(v) && !v.length);
+          var changed = has && JSON.stringify(prevArtifact[f]) !== JSON.stringify(artifact[f]);
+          if (has) filledCount++;
+          // The work plan's action items render as an interactive checklist, not a text blob.
+          if (f === "action_items" && Array.isArray(v) && v.length) {
+            return '<div class="field filled' + (changed ? " is-new" : "") +
+                   '"><p class="k"><span class="dot"></span>' + esc(titleCase(f)) +
+                   '</p><ul class="ai-list">' + actionItemRows(v) + "</ul></div>";
+          }
+          if (Array.isArray(v)) v = v.join("\n");
+          var cls = "field " + (has ? "filled" : "pending") + (changed ? " is-new" : "");
+          var val = has ? linkify(String(v)) : "— pending";
+          return '<div class="' + cls + '"><p class="k"><span class="dot"></span>' +
+                 esc(titleCase(f)) + '</p><p class="v">' + val + "</p></div>";
+        }).join("");
+        var ready = filledCount > 0;
+        btnCopy.disabled = !ready; btnDl.disabled = !ready;
+      }
+
+      function renderPlan() {
+        renderCtx();
+        renderProgress();
+        renderSections();
+        if (planState && planState.turn) {
+          elStamp.hidden = false;
+          elStamp.textContent = "Updated · turn " + planState.turn;
+        }
+        prevArtifact = JSON.parse(JSON.stringify((planState && planState.artifact) || {}));
+      }
+
+      function resetPlan() {
+        scaffold = null; planState = null; scaffoldFor = null; prevArtifact = {}; planChecked = {};
+        elTitle.textContent = "Your plan";
+        elCtx.hidden = true; elCtx.innerHTML = "";
+        elProg.innerHTML = "";
+        elSecs.innerHTML = '<p class="plan-empty">Your plan will build here as you and your advisor work through it.</p>';
+        elStamp.hidden = true;
+        btnCopy.disabled = true; btnDl.disabled = true;
+      }
+
+      // ---- export ----
+      function planMarkdown() {
+        var name = (scaffold && scaffold.name) || elTitle.textContent;
+        var lines = ["# " + name + " — Working Plan", ""];
+        var slots = (planState && planState.slots) || {};
+        var sk = Object.keys(slots).filter(function (k) { return slots[k] && k !== "branch"; });
+        if (sk.length) {
+          lines.push(sk.map(function (k) { return "**" + titleCase(k) + ":** " + slots[k]; }).join("  •  "), "");
+        }
+        var fields = fieldsForBranch();
+        var artifact = (planState && planState.artifact) || {};
+        if (!fields.length) fields = Object.keys(artifact);
+        fields.forEach(function (f) {
+          var v = artifact[f];
+          if (v == null || v === "" || (Array.isArray(v) && !v.length)) return;
+          if (f === "action_items" && Array.isArray(v)) {
+            lines.push("## " + titleCase(f));
+            v.forEach(function (it) {
+              var p = aiParts(it);
+              if (!p.task) return;
+              var meta = [p.owner, p.when].filter(Boolean).join(" · ");
+              var suffix = [meta, p.cite].filter(Boolean).join(" ");
+              lines.push("- [" + (planChecked[p.task] ? "x" : " ") + "] " + p.task +
+                         (suffix ? "  (" + suffix + ")" : ""));
+            });
+            lines.push("");
+            return;
+          }
+          if (Array.isArray(v)) v = v.join("\n");
+          lines.push("## " + titleCase(f), String(v), "");
+        });
+        lines.push("---", "_Drafted with MAGPIE Business Location Advisors — an unofficial AI demo. Verify on commerce.mt.gov._");
+        return lines.join("\n");
+      }
+      btnCopy.addEventListener("click", function () {
+        var md = planMarkdown();
+        (navigator.clipboard ? navigator.clipboard.writeText(md) : Promise.reject()).then(function () {
+          btnCopy.textContent = "Copied ✓"; btnCopy.classList.add("ok");
+          setTimeout(function () { btnCopy.textContent = "Copy"; btnCopy.classList.remove("ok"); }, 1600);
+        }).catch(function () { btnCopy.textContent = "Copy failed"; setTimeout(function () { btnCopy.textContent = "Copy"; }, 1600); });
+      });
+      btnDl.addEventListener("click", function () {
+        var blob = new Blob([planMarkdown()], { type: "text/markdown" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url; a.download = (scaffoldFor || "community") + "-plan.md";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      });
+
+      // Check an action item off (or back on). Session-only — export reflects it.
+      elSecs.addEventListener("click", function (e) {
+        var btn = e.target && e.target.closest && e.target.closest(".ai-check");
+        if (!btn) return;
+        var task = btn.getAttribute("data-task");
+        if (!task) return;
+        var now = !planChecked[task];
+        planChecked[task] = now;
+        var li = btn.closest("li");
+        if (li) li.classList.toggle("ai-done", now);
+        btn.setAttribute("aria-checked", now ? "true" : "false");
+        btn.textContent = now ? "✓" : "";
+      });
+
+      // ---- stage navigation (pre <-> live) ----
+      function setActiveLabel(id) {
+        var meta = ADVISORS[id] || { emoji:"💬", name:"Advisor" };
+        convActive.innerHTML = '<span class="ava" aria-hidden="true">' + meta.emoji + "</span>" + meta.name;
+      }
+      function goLive(id) {
+        setActiveLabel(id);
+        fetchScaffold(id);
+        body.classList.remove("pre"); body.classList.add("live");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      function goPre() {
+        body.classList.remove("live"); body.classList.add("pre");
+        if (window.MAGPIE) window.MAGPIE.reset();
+        resetPlan();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        askInput.focus();
+      }
+
+      cards.forEach(function (el) {
+        el.addEventListener("click", function () {
+          var id = el.getAttribute("data-persona");
+          goLive(id);
+          if (window.MAGPIE) window.MAGPIE.startPersona(id);
+        });
+      });
+
+      askForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var q = askInput.value.trim();
+        if (!q) { askInput.focus(); return; }
+        goLive(GUIDE);
+        if (window.MAGPIE) window.MAGPIE.startPersona(GUIDE, q);
+        askInput.value = "";
+      });
+
+      document.getElementById("conv-back").addEventListener("click", goPre);
+
+      // The widget announces the active advisor (card click, hero box, in-chat handoff,
+      // OR a restored session). Keep the live stage + plan scaffold in sync.
+      document.addEventListener("magpie:persona", function (e) {
+        var id = e.detail && e.detail.id;
+        if (!id) return;
+        setActiveLabel(id);
+        // New advisor (e.g. an in-chat handoff) → start the plan fresh for them; a
+        // following magpie:state (on restore, or the first answer) repopulates it.
+        if (scaffoldFor !== id) { planState = null; prevArtifact = {}; planChecked = {}; fetchScaffold(id); }
+        if (!body.classList.contains("live")) goLive(id); // e.g. restore, or a handoff
+      });
+
+      // The accumulated conversation state → refresh the living plan document.
+      document.addEventListener("magpie:state", function (e) {
+        planState = (e.detail && e.detail.state) || planState;
+        renderPlan();
+      });
+    })();
+  </script>
+</body>
+</html>
